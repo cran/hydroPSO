@@ -1104,6 +1104,7 @@ Random.Topology.Generation <- function(npart, K,
 # Updates: Dec-2010                                                            #
 #          May-2011    ; 28-Oct-2011 ; 14-Nov-2011 ; 23-Nov-2011 ;             #
 #          15-Jan-2012 ; 23-Jan-2012 ; 30-Jan-2012 ; 23-Feb-2012 ; 23-Mar-2012 #
+#          14-Jun-2012                                                         #
 ################################################################################
 # 'lower'           : minimum possible value for each parameter
 # 'upper'           : maximum possible value for each parameter
@@ -1700,44 +1701,31 @@ hydroPSO <- function(
 	  tmp <- nrow(par)
 	  X[1:tmp,] <- par 
 	} # ELSE end
-      } # IF end 
+      } # IF end  
     } # IF end
 
     X.best.part <- X
 
-    X.best.iter <- matrix(rep(NA,n*maxit), ncol=n, nrow=maxit, byrow=TRUE)
-    rownames(X.best.iter) <- paste("iter.", 1:maxit, sep="")
-    colnames(X.best.iter) <- param.IDs
+    # Worst possible value defined for the objective function
+    ifelse(MinMax == "max", fn.worst.value <- -.Machine$double.xmax/2, 
+                            fn.worst.value <- +.Machine$double.xmax/2)
+                            
+    pbest.fit            <- rep(fn.worst.value, npart)     
+    pbest.fit.iter       <- fn.worst.value
+    pbest.fit.iter.prior <- fn.worst.value*2
+			    
+    gbest.fit       <- fn.worst.value
+    gbest.fit.iter  <- rep(gbest.fit, maxit)
+    gbest.fit.prior <- gbest.fit
+    gbest.pos       <- 1
 
-    ifelse(MinMax == "max", new.value <- -Inf, new.value <- +Inf)
-    pbest.fit <- rep(new.value, npart) 
-
-    pbest.fit.prior <- pbest.fit 
-
-    pbest.fit.part.iter           <- matrix(rep(new.value,npart*maxit), ncol=npart, nrow=maxit, byrow=TRUE)
-    rownames(pbest.fit.part.iter) <- paste("iter.", 1:maxit, sep="")
-    colnames(pbest.fit.part.iter) <- paste("Part", 1:npart, sep="")
-
-    ifelse(MinMax == "max", gbest.fit <- -.Machine$integer.max, 
-			    gbest.fit <- .Machine$integer.max )
-
-    gbest.fit.iter <- rep(gbest.fit, maxit)
-
-    gbest.fit.prior <- gbest.fit + 10*reltol
-
-    gbest.pos <- 1
-
-    ifelse(MinMax == "max", new.value <- -Inf, new.value <- +Inf)
-    Xt.fitness <- matrix(rep(new.value, maxit*npart), ncol=npart, nrow=maxit, byrow=TRUE)       
+    Xt.fitness <- matrix(rep(fn.worst.value, maxit*npart), ncol=npart, nrow=maxit, byrow=TRUE)       
     colnames(Xt.fitness) <- paste("Part", 1:npart, sep="")
-    rownames(Xt.fitness) <- paste("iter.", 1:maxit, sep="")
-
-    velocities           <- matrix(rep(NA, (n+2)*maxit*npart), ncol=(n+2), nrow=maxit*npart, byrow=TRUE)
-    colnames(velocities) <- c("Iter", "Part", param.IDs) 
+    rownames(Xt.fitness) <- paste("iter.", 1:maxit, sep="") 
 
     if (topology != "random") {
       nc <- K  
-      ifelse(trunc(K/2) != ceiling(K/2), N  <- (K-1)/2, N  <- K/2)
+      ifelse(trunc(K/2) != ceiling(K/2), N   <- (K-1)/2, N  <- K/2)
       ifelse(trunc(K/2) != ceiling(K/2), NN  <- 1, NN  <- 0)
 
       X.neighbours <- matrix(rep(-NA, nc*npart), ncol=nc, nrow=npart, byrow=TRUE)
@@ -1754,18 +1742,12 @@ hydroPSO <- function(
       colnames(X.neighbours) <- paste("Neigh", 1:nc, sep="")
     } # IF end 
 
-    ifelse(MinMax == "max", new.value <- -Inf, new.value <- +Inf)
-    LocalBest.fit <- rep(new.value, npart)
+    LocalBest.fit <- rep(fn.worst.value, npart)
 
     LocalBest.pos <- 1:npart
 
-    LocalBest.fit.part.iter <- matrix(rep(new.value, npart*maxit), ncol=npart, nrow=maxit, byrow=TRUE)
-    rownames(LocalBest.fit.part.iter) <- paste("iter.", 1:maxit, sep="")
-    colnames(LocalBest.fit.part.iter) <- paste("Part", 1:npart, sep="")
-
     if ( topology == "ipso") { 
-      ifelse(MinMax == "max", new.value <- -Inf, new.value <- +Inf)
-      ngbest.fit <- rep(new.value, ngbest)
+      ngbest.fit <- rep(fn.worst.value, ngbest)
 
       ngbest.pos <- rep(1, ngbest)
     } else {
@@ -1824,22 +1806,6 @@ hydroPSO <- function(
       } # IF end
       writeLines(c("Boundary wall     :", boundary.wall), PSOparam.TextFile, sep=" ") 
       writeLines("", PSOparam.TextFile) 
-      writeLines(c("c1                :", c1), PSOparam.TextFile, sep=" ") 
-      writeLines("", PSOparam.TextFile) 
-      writeLines(c("c2                :", c2), PSOparam.TextFile, sep=" ") 
-      writeLines("", PSOparam.TextFile) 
-      writeLines(c("lambda            :", lambda), PSOparam.TextFile, sep=" ") 
-      writeLines("", PSOparam.TextFile)   
-      if (use.IW) {
-	writeLines(c("use.IW            :", use.IW), PSOparam.TextFile, sep=" ") 
-	writeLines("", PSOparam.TextFile) 
-	writeLines(c("IW.type           :", IW.type), PSOparam.TextFile, sep=" ") 
-	writeLines("", PSOparam.TextFile) 
-	writeLines(c("IW.w              :", IW.w), PSOparam.TextFile, sep=" ") 
-	writeLines("", PSOparam.TextFile) 
-	writeLines(c("IW.exp            :", IW.exp), PSOparam.TextFile, sep=" ") 
-	writeLines("", PSOparam.TextFile) 
-      }  # IF end
       if (use.TVc1) {
 	writeLines(c("use.TVc1          :", use.TVc1), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
@@ -1849,7 +1815,10 @@ hydroPSO <- function(
 	writeLines("", PSOparam.TextFile) 
 	writeLines(c("TVc1.exp          :", TVc1.exp), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
-      }  # IF end
+      } else {
+        writeLines(c("c1                :", c1), PSOparam.TextFile, sep=" ") 
+        writeLines("", PSOparam.TextFile) 
+      } # ELSE end
       if (use.TVc2) {
 	writeLines(c("use.TVc2          :", use.TVc2), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
@@ -1859,7 +1828,10 @@ hydroPSO <- function(
 	writeLines("", PSOparam.TextFile) 
 	writeLines(c("TVc2.exp          :", TVc2.exp), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
-      }  # IF end
+      } else {
+        writeLines(c("c2                :", c2), PSOparam.TextFile, sep=" ") 
+        writeLines("", PSOparam.TextFile) 
+      } # ELSE end 
       if (use.TVlambda) {
 	writeLines(c("use.TVlambda      :", use.TVlambda), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
@@ -1868,6 +1840,19 @@ hydroPSO <- function(
 	writeLines(c("TVlambda.rng      :", TVlambda.rng), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
 	writeLines(c("TVlambda.exp      :", TVlambda.exp), PSOparam.TextFile, sep=" ") 
+	writeLines("", PSOparam.TextFile) 
+      } else {
+        writeLines(c("lambda            :", lambda), PSOparam.TextFile, sep=" ") 
+        writeLines("", PSOparam.TextFile)   
+      }  # ELSE end
+      if (use.IW) {
+	writeLines(c("use.IW            :", use.IW), PSOparam.TextFile, sep=" ") 
+	writeLines("", PSOparam.TextFile) 
+	writeLines(c("IW.type           :", IW.type), PSOparam.TextFile, sep=" ") 
+	writeLines("", PSOparam.TextFile) 
+	writeLines(c("IW.w              :", IW.w), PSOparam.TextFile, sep=" ") 
+	writeLines("", PSOparam.TextFile) 
+	writeLines(c("IW.exp            :", IW.exp), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
       }  # IF end
       writeLines(c("maxfn             :", maxfn), PSOparam.TextFile, sep=" ")  
@@ -1909,6 +1894,30 @@ hydroPSO <- function(
       writeLines(c("Iter", "Gbest", "GbestRate[%]", "IterBestFit", "normSwarmRadius", "|gbest-mean(pbest)|/mean(pbest)[%]"), ConvergenceMeasures.TextFile, sep=" ") 
       writeLines("", ConvergenceMeasures.TextFile) 
       close(ConvergenceMeasures.TextFile)   
+
+      # File 'BestParamPerIter.txt' #
+      BestParamPerIter.Textfname <- paste(file.path(drty.out), "/", "BestParamPerIter.txt", sep="")
+      BestParamPerIter.TextFile  <- file(BestParamPerIter.Textfname, "w+")
+      
+      writeLines(c("Iter", "GoF", param.IDs), BestParamPerIter.TextFile, sep="  ") 
+      writeLines("", BestParamPerIter.TextFile) 
+      close(BestParamPerIter.TextFile) 
+      
+      # File 'PbestPerIter.txt' #
+      PbestPerIter.Textfname <- paste(file.path(drty.out), "/", "PbestPerIter.txt", sep="")
+      PbestPerIter.TextFile  <- file(PbestPerIter.Textfname, "w+")
+      
+      writeLines(c("Iter", paste("Part", 1:npart, sep="") ), PbestPerIter.TextFile, sep="  ") 
+      writeLines("", PbestPerIter.TextFile) 
+      close(PbestPerIter.TextFile) 
+      
+      # File 'LocalBestPerIter.txt' #
+      LocalBestPerIter.Textfname <- paste(file.path(drty.out), "/", "LocalBestPerIter.txt", sep="")
+      LocalBestPerIter.TextFile  <- file(LocalBestPerIter.Textfname, "w+")
+      
+      writeLines(c("Iter", paste("Part", 1:npart, sep="") ), LocalBestPerIter.TextFile, sep="  ") 
+      writeLines("", LocalBestPerIter.TextFile) 
+      close(LocalBestPerIter.TextFile) 
 
       if (use.RG) {
 	# File 'Xmin.txt' #
@@ -1989,29 +1998,24 @@ hydroPSO <- function(
     } # IF 'write2disk' end
 
     ########################################################################
-    ifelse(MinMax == "max", new.value <- -Inf, new.value <- +Inf)
-    last.best.fits  <- rep(new.value, RG.miniter) 
-
-    last.gbest.fits <- rep(new.value, RG.miniter)     
-
     GPbest.fit.rate <- Inf
 
-    iter <- 1
-
-    nfn <- 1
-
-    iter.rg <- 1
-
+    iter     <- 1
+    nfn      <- 1
+    iter.rg  <- 1
     nregroup <- 0
 
     iter.tv  <- iter
     niter.tv <- maxit
 
     if (write2disk) {
-      OFout.Text.file <- file(OFout.Text.fname, "a")           
-      Particles.TextFile <- file(Particles.Textfname, "a")  
-      Velocities.TextFile <- file(Velocities.Textfname, "a") 
+      OFout.Text.file              <- file(OFout.Text.fname, "a")           
+      Particles.TextFile           <- file(Particles.Textfname, "a")  
+      Velocities.TextFile          <- file(Velocities.Textfname, "a") 
       ConvergenceMeasures.TextFile <- file(ConvergenceMeasures.Textfname, "a")   
+      BestParamPerIter.TextFile    <- file(BestParamPerIter.Textfname, "a")
+      PbestPerIter.TextFile        <- file(PbestPerIter.Textfname, "a") 
+      LocalBestPerIter.TextFile    <- file(LocalBestPerIter.Textfname, "a") 
       if (use.RG) {
 	Xmin.Text.file <- file(Xmin.Text.fname, "a")        
 	Xmax.Text.file <- file(Xmax.Text.fname, "a")
@@ -2039,29 +2043,19 @@ hydroPSO <- function(
 
       if ( (topology=="random") & (!improvement) ) 
 	X.neighbours <- Random.Topology.Generation(npart, K, drty.out, iter)
+	
+      ModelOut <- vector("list", npart)
 
-    ############################################################################  
+      ##########################################################################  
       # 3.a) Evaluate the particles fitness
       if ( fn.name != "hydromod" ) {
 
 	 # Evaluating a Test Function 
 	 Xt.fitness[iter, 1:npart] <- apply(X, fn, MARGIN=1)
 	 GoF                       <- Xt.fitness[iter, 1:npart]
-
-	 velocities[(npart*(iter-1)+1):(npart*iter), 1]       <- iter
-	 velocities[(npart*(iter-1)+1):(npart*iter), 2]       <- 1:npart
-	 velocities[(npart*(iter-1)+1):(npart*iter), 3:(2+n)] <- V 
+	 ModelOut[1:npart]         <- GoF  ###
 
 	 nfn <- nfn + npart
-
-	 if (write2disk) {
-	   for ( part in (1:npart) ) {               
-	     
-	     tmp <- formatC(GoF[part], format="E", digits=digits, flag=" ")
-	     writeLines(as.character(c(iter, part, tmp, tmp)), OFout.Text.file, sep="  ") 
-	     writeLines("", OFout.Text.file)    
-	   } # FOR end     
-	 } # IF end
 
       } else { # fn.name = "hydromod"       
 
@@ -2073,41 +2067,28 @@ hydroPSO <- function(
 
 	       if ( iter/REPORT == floor(iter/REPORT) ) {
 		 if (verbose.FUN) message("================================================================================")
-		 if (verbose.FUN) message( paste("[Iter: ", format( iter, width=4, justify="left" ), "/", maxit, 
-						 ".  Particle: ", format( part, width=4, justify="left" ), "/", npart, 
-						 ":  Starting...]", sep="") )
+		 if (verbose.FUN) message( "[Iter: ", format( iter, width=4, justify="left" ), "/", maxit, 
+					   ".  Particle: ", format( part, width=4, justify="left" ), "/", npart, 
+					   ":  Starting...]" )
 		 if (verbose.FUN) message("================================================================================")
 	       } # IF end
 
 	       # Evaluating the hydrological model
 	       model.FUN.args         <- modifyList(model.FUN.args, list(param.values=X[part,]) ) 
 	       hydromod.out           <- do.call(model.FUN, as.list(model.FUN.args)) 
-
-	       GoF                    <- as.numeric(hydromod.out[["GoF"]])
-	       Xt.fitness[iter, part] <- GoF                 
-
-	       velocities[npart*(iter-1)+part, 1]       <- iter
-	       velocities[npart*(iter-1)+part, 2]       <- part
-	       velocities[npart*(iter-1)+part, 3:(2+n)] <- V[part,] 
+   
+	       Xt.fitness[iter, part]  <- as.numeric(hydromod.out[["GoF"]])
+	       GoF                     <- Xt.fitness[iter, part]
+               ModelOut[[part]]        <- hydromod.out[["sim"]]
 
 	       if(is.finite(GoF)) nfn <- nfn + 1                  
 
-	       if (write2disk) {
-		 
-		 if(is.finite(GoF)) {
-		   writeLines(as.character(c(iter, part, 
-					   formatC(GoF, format="E", digits=digits, flag=" "), 
-					   formatC(hydromod.out[["sim"]], format="E", digits=digits, flag=" ") ) ), 
-			      OFout.Text.file, sep="  ") 
-		 } else writeLines(as.character(c(iter, part, "NA", "NA" ) ), OFout.Text.file, sep="  ")
-		 writeLines("", OFout.Text.file) 
-	       } # IF end
-
 	       if ( iter/REPORT == floor(iter/REPORT) ) {
 		 if (verbose.FUN) message("================================================================================")
-		 if (verbose.FUN) message( paste("[Iter: ", format( iter, width=4, justify="left" ), "/", maxit,  
-						 ".   Particle: ", format( part, width=4, justify="left" ), "/", npart,  
-						 ".   Finished !.   GoF: ", format(hydromod.out[["GoF"]], scientific=TRUE, digits=digits), "]", sep="") )
+		 if (verbose.FUN) message( "[Iter: ", format( iter, width=4, justify="left" ), "/", maxit,  
+					   ".   Particle: ", format( part, width=4, justify="left" ), "/", npart,  
+					   ".   Finished !.   GoF: ", format(hydromod.out[["GoF"]], scientific=TRUE, digits=digits), 
+                                           "]" )
 		 if (verbose.FUN) message("================================================================================")
 		 if (verbose.FUN) message("                                    |                                           ")  
 		 if (verbose.FUN) message("                                    |                                           ")    
@@ -2116,33 +2097,6 @@ hydroPSO <- function(
 	      } # FOR 'part' end
 
 	} # ELSE end
-
-
-      if (write2disk) {
-	for ( part in (1:npart) ) {
-	  # File 'Particles.txt' #
-	  if(is.finite(Xt.fitness[iter, part])) {
-	    writeLines(as.character( c(iter, part, 
-				     formatC(Xt.fitness[iter, part], format="E", digits=digits, flag=" "), #GoF
-				     formatC(X[part, ], format="E", digits=digits, flag=" ") 
-				      ) ), Particles.TextFile, sep="  ") 
-	  } else writeLines(as.character( c(iter, part, "NA",
-					  formatC(X[part, ], format="E", digits=digits, flag=" ") 
-				      ) ), Particles.TextFile, sep="  ") 
-	  writeLines("", Particles.TextFile)    
-
-	  # File 'Velocities.txt' #
-	  if(is.finite(Xt.fitness[iter, part])) {
-	    writeLines( as.character( c(iter, part, 
-					formatC(Xt.fitness[iter, part], format="E", digits=digits, flag=" "), # GoF
-					formatC(V[part, ], format="E", digits=digits, flag=" ")                                            
-					) ), Velocities.TextFile, sep="  ") 
-	  } else writeLines( as.character( c(iter, part, "NA",
-					formatC(V[part, ], format="E", digits=digits, flag=" ")                                            
-					) ), Velocities.TextFile, sep="  ")
-	  writeLines("", Velocities.TextFile)     
-	} # FOR end 
-      } # IF end
 
       if ( plot ) {
 	ifelse(MinMax == "max", lgof <- max(GoF, na.rm=TRUE), lgof <- min(GoF, na.rm=TRUE)) 
@@ -2172,21 +2126,16 @@ hydroPSO <- function(
 				       x.best= X.best.part
 				       )                               
 
-	    pbest.fit                   <- tmp[["pbest"]]
-	    X.best.part                 <- tmp[["x.best"]]
-	    gbest.fit                   <- tmp[["gbest.fit"]]
-	    gbest.pos                   <- tmp[["gbest.pos"]]
-	    pbest.fit.part.iter[iter, ] <- tmp[["pbest"]]
+	    pbest.fit   <- tmp[["pbest"]]
+	    X.best.part <- tmp[["x.best"]]
+	    gbest.fit   <- tmp[["gbest.fit"]]
+	    gbest.pos   <- tmp[["gbest.pos"]]
 
       } # IF end
 
 
       suppressWarnings(ifelse(MinMax=="max", pbest.fit.iter <- max( Xt.fitness[iter, ], na.rm=TRUE ),  
-			                     pbest.fit.iter <- min( Xt.fitness[iter, ], na.rm=TRUE) ) )
-
-      last.best.fits <- roll.vector(last.best.fits, new.value= pbest.fit.iter)   
-
-      last.gbest.fits <- roll.vector(last.gbest.fits, new.value= gbest.fit)  
+			                     pbest.fit.iter <- min( Xt.fitness[iter, ], na.rm=TRUE) ) )  
 
       tmp <- UpdateLocalBest(pbest.fit=pbest.fit, 
 			     localBest.pos=LocalBest.pos,
@@ -2195,8 +2144,6 @@ hydroPSO <- function(
 			     MinMax=MinMax) 
       LocalBest.fit <- tmp[["localBest.fit"]]
       LocalBest.pos <- tmp[["localBest.pos"]]
-
-      LocalBest.fit.part.iter[iter,] <- LocalBest.fit
 
       if ( method == "ipso" ) {
 	 tmp <- UpdateNgbest(pbest.fit=pbest.fit, 
@@ -2222,35 +2169,72 @@ hydroPSO <- function(
       NormSwarmRadius <- swarm.radius/swarm.diameter
 
       if ( (verbose) & ( iter/REPORT == floor(iter/REPORT) ) ) 
-	   message( paste("iter:", format(iter, width=6, justify="right"), 
-			  "   Gbest:", formatC( gbest.fit, format="E", digits=digits, flag=" "), 
-			  "   Gbest_rate:", format( round(gbest.fit.rate*100, 2), width=6, nsmall=2, justify="left"), "%",
-			  "   Iter_best_fit:", formatC(pbest.fit.iter, format="E", digits=digits, flag=" "),               
-			  "   nSwarm_Radius:", formatC(NormSwarmRadius, format="E", digits=digits, flag=" "),
-			  "   |g-mean(p)|/mean(p):", format( round(GPbest.fit.rate*100, 2), width=6, nsmall=2, justify="left"), "%", sep="") )
+	   message( "iter:", format(iter, width=6, justify="right"), 
+		    "   Gbest:", formatC( gbest.fit, format="E", digits=digits, flag=" "), 
+		    "   Gbest_rate:", format( round(gbest.fit.rate*100, 2), width=6, nsmall=2, justify="left"), "%",
+		    "   Iter_best_fit:", formatC(pbest.fit.iter, format="E", digits=digits, flag=" "),               
+		    "   nSwarm_Radius:", formatC(NormSwarmRadius, format="E", digits=digits, flag=" "),
+		    "   |g-mean(p)|/mean(p):", format( round(GPbest.fit.rate*100, 2), width=6, nsmall=2, justify="left"), "%" )
 
       ##########################################################################  
       ###################   Particles Loop (j) - Start  ########################
       ##########################################################################  
       for (j in 1:npart) {
+      
+        if (write2disk) {
+        
+          # File 'Model_Out.txt'
+          GoF <- Xt.fitness[iter, j]
+          if(is.finite(GoF)) {
+             writeLines(as.character(c(iter, j, 
+				       formatC(GoF, format="E", digits=digits, flag=" "), 
+				       formatC(ModelOut[[j]], format="E", digits=digits, flag=" ") ) ), 
+			OFout.Text.file, sep="  ") 
+          } else writeLines(as.character(c(iter, j, "NA", "NA" ) ), OFout.Text.file, sep="  ")
+	  writeLines("", OFout.Text.file) 
+          
+          # File 'Particles.txt' #
+	  if(is.finite(Xt.fitness[iter, j])) {
+	    writeLines(as.character( c(iter, j, 
+				     formatC(Xt.fitness[iter, j], format="E", digits=digits, flag=" "), #GoF
+				     formatC(X[j, ], format="E", digits=digits, flag=" ") 
+				      ) ), Particles.TextFile, sep="  ") 
+	  } else writeLines(as.character( c(iter, j, "NA",
+					  formatC(X[j, ], format="E", digits=digits, flag=" ") 
+				      ) ), Particles.TextFile, sep="  ") 
+	  writeLines("", Particles.TextFile)
+        
+	  # File 'Velocities.txt' #
+	  if(is.finite(Xt.fitness[iter, j])) {
+	    writeLines( as.character( c(iter, j, 
+					formatC(Xt.fitness[iter, j], format="E", digits=digits, flag=" "), # GoF
+					formatC(V[j, ], format="E", digits=digits, flag=" ")                                            
+					) ), Velocities.TextFile, sep="  ") 
+	  } else writeLines( as.character( c(iter, j, "NA",
+					formatC(V[j, ], format="E", digits=digits, flag=" ")                                            
+					) ), Velocities.TextFile, sep="  ")
+	  writeLines("", Velocities.TextFile)  
+	  
+        } # IF end
+	    
 
-	    if ( best.update == "async" ) {
-	       tmp <- async.update.pgbests(x=X[j,], 
-					   x.pos=j, 
-					   xt.fitness= Xt.fitness[iter, j],
-					   MinMax= MinMax, 
-					   l.pbest.fit= pbest.fit[j], 
-					   gbest.fit= gbest.fit, 
-					   gbest.pos= gbest.pos,
-					   x.best= X.best.part[j, ]
-					   )                                    
+	if ( best.update == "async" ) {
+	   tmp <- async.update.pgbests(x=X[j,], 
+	                               x.pos=j, 
+                                       xt.fitness= Xt.fitness[iter, j],
+                                       MinMax= MinMax, 
+                                       l.pbest.fit= pbest.fit[j], 
+                                       gbest.fit= gbest.fit, 
+                                       gbest.pos= gbest.pos,
+                                       x.best= X.best.part[j, ]
+	                               )                                    
 
-	       pbest.fit[j]    <- tmp[["pbest"]]
-	       X.best.part[j,] <- tmp[["x.best"]]       
-	       gbest.pos       <- tmp[["gbest.pos"]] 
-	       gbest.fit       <- tmp[["gbest.fit"]] 
+	   pbest.fit[j]    <- tmp[["pbest"]]
+	   X.best.part[j,] <- tmp[["x.best"]]       
+	   gbest.pos       <- tmp[["gbest.pos"]] 
+	   gbest.fit       <- tmp[["gbest.fit"]] 
 
-	    } # IF end  
+	} # IF end  
 
 
 	if (use.IW) {                   
@@ -2259,18 +2243,19 @@ hydroPSO <- function(
 					   nexp=IW.exp, val.ini=w.ini, 
 					   val.fin=w.fin)                   
 	   } else if (IW.type == "aiwf") { 
-		      w <- compute.w.aiwf(iter.fit= Xt.fitness[iter, ],
-					  particle.pos =j, 
-					  gbest.fit=gbest.fit, 
-					  w.max=max(w.ini, w.fin), 
-					  w.min=min(w.ini, w.fin),
-					  MinMax=MinMax)   
+	        w <- compute.w.aiwf(iter.fit= Xt.fitness[iter, ],
+                                    particle.pos =j, 
+                                    gbest.fit=gbest.fit, 
+                                    w.max=max(w.ini, w.fin), 
+                                    w.min=min(w.ini, w.fin),
+                                    MinMax=MinMax
+                                    )   
 
 	     } else if (IW.type == "GLratio") {
-		      w <- compute.w.with.GLratio(MinMax, gbest.fit, pbest.fit)   
+		w <- compute.w.with.GLratio(MinMax, gbest.fit, pbest.fit)   
 	       }  else if (IW.type == "runif") {
-			  w <- runif(1, min=w.ini, max=w.fin)
-		       } 
+		  w <- runif(1, min=w.ini, max=w.fin)
+		  } # ELSE end
 	} else w <- 1    
 
 	if (use.TVc1) {
@@ -2334,8 +2319,6 @@ hydroPSO <- function(
       ###################   Particles Loop (j) - End  ##########################
       ##########################################################################  
 
-      X.best.iter[iter, ] <- X.best.part[gbest.pos, ]
-
       gbest.fit.iter[iter] <- gbest.fit
 
       ##########################################################################  
@@ -2359,7 +2342,7 @@ hydroPSO <- function(
 	   gbest.fit.bak <- ngbest.fit
 	  } # IF end
 
-	  if (verbose) message(paste("[Re-grouping particles in the swarm (iter: ", iter, ") ...]", sep=""))
+	  if (verbose) message("[Re-grouping particles in the swarm (iter: ", iter, ") ...]")
 
 	  tmp <- RegroupingSwarm(x=X, 
 				 gbest= X.best.part[gbest.pos, ], 
@@ -2404,18 +2387,21 @@ hydroPSO <- function(
 
       ifelse(MinMax=="max", abstol.conv <- gbest.fit >= abstol, 
 			    abstol.conv <- gbest.fit <= abstol )
-
-      if (iter > 1) {
-	ifelse(MinMax=="max", reltol.conv <- abs((gbest.fit.prior+reltol)/gbest.fit) <= reltol,
-			      reltol.conv <- abs(gbest.fit/(gbest.fit.prior+reltol)) <= reltol )
-      } # IF end
+                     
+      if (reltol==0) {
+        reltol.conv <- FALSE
+      } else {
+        tmp <- abs(pbest.fit.iter.prior - pbest.fit.iter)
+        ifelse(tmp==0, reltol.conv <- FALSE, reltol.conv <- tmp <= abs(reltol) )
+      } # ELSE end
+                     
+      pbest.fit.iter.prior <- pbest.fit.iter
 
       # Gbest was improved ?
       ifelse(gbest.fit.prior==gbest.fit, improvement <- FALSE, improvement <- TRUE) 
 
-      pbest.fit.prior <- pbest.fit
-
       gbest.fit.prior <- gbest.fit
+            
 
       if (abstol.conv ) {
 	end.type.stg  <- "Converged ('abstol' criterion)"
@@ -2432,6 +2418,8 @@ hydroPSO <- function(
       } # ELSE end
 
       if (write2disk) {
+      
+        # File 'ConvergenceMeasures.txt'
 	writeLines(as.character( c(iter, 
 				   formatC(gbest.fit, format="E", digits=digits, flag=" "), 
 				   format( round(gbest.fit.rate*100, 3), nsmall=3, width=7, justify="right"),
@@ -2439,7 +2427,35 @@ hydroPSO <- function(
 				   formatC(NormSwarmRadius, format="E", digits=digits, flag=" "),
 				   format( round(GPbest.fit.rate*100, 3), nsmall=3, width=7, justify="right")
 				  ) ), ConvergenceMeasures.TextFile, sep="  ")
-	writeLines("", ConvergenceMeasures.TextFile)   
+	writeLines("", ConvergenceMeasures.TextFile) 
+        
+        # File 'BestParamPerIter.txt' #
+        GoF <- gbest.fit
+	if(is.finite(GoF)) {
+	  writeLines( as.character( c(iter,
+	                              formatC(GoF, format="E", digits=digits, flag=" "), 
+	                              formatC(X.best.part[gbest.pos, ], format="E", digits=digits, flag=" ")	                                                            
+	                          ) ), BestParamPerIter.TextFile, sep="  ") 
+	} else writeLines( as.character( c(iter,
+	                                   "NA",
+	                                   formatC(X.best.part[gbest.pos, ], format="E", digits=digits, flag=" ")                                                                                  
+	                               ) ), BestParamPerIter.TextFile, sep="  ")
+	writeLines("", BestParamPerIter.TextFile)  
+	
+	# File 'PbestPerIter.txt' #
+        GoF <- pbest.fit
+	writeLines( as.character( c(iter,
+	                            formatC(GoF, format="E", digits=digits, flag=" ") 
+	                           ) ), PbestPerIter.TextFile, sep="  ")
+	writeLines("", PbestPerIter.TextFile)  
+	
+	# File 'LocalBestPerIter.txt' #
+        GoF <- LocalBest.fit
+	writeLines( as.character( c(iter,
+	                            formatC(GoF, format="E", digits=digits, flag=" ") 
+	                           ) ), LocalBestPerIter.TextFile, sep="  ")
+	writeLines("", LocalBestPerIter.TextFile)  
+	
       } # IF end
 
       iter    <- iter + 1
@@ -2454,6 +2470,9 @@ hydroPSO <- function(
       close(Particles.TextFile)
       close(Velocities.TextFile)
       close(ConvergenceMeasures.TextFile)
+      close(BestParamPerIter.TextFile)
+      close(PbestPerIter.TextFile) 
+      close(LocalBestPerIter.TextFile)
       if (use.RG) {
 	close(Xmin.Text.file)        
 	close(Xmax.Text.file)
@@ -2515,21 +2534,11 @@ hydroPSO <- function(
       } # FOR end 
       close(tmp.TextFile) 
 
-      # Writing the file 'BestParamPerIter.txt', with ...
-      fname <- paste(file.path(drty.out), "/", "BestParamPerIter.txt", sep="") 	
-      tmp <- cbind(X.best.iter, gbest.fit.iter)
-      colnames(tmp)[ncol(tmp)] <- "GoF"
-      write.table(format(tmp, scientific=TRUE, digits=digits), file=fname, col.names=TRUE, row.names=FALSE, sep="  ", quote=FALSE)
-
       # Writing the file 'BestParamPerParticle.txt', with ...
       fname <- paste(file.path(drty.out), "/", "BestParamPerParticle.txt", sep="") 
       tmp <- cbind(X.best.part, pbest.fit)
       colnames(tmp)[ncol(tmp)] <- "GoF"	
       write.table(format(tmp, scientific=TRUE, digits=digits), file=fname, col.names=TRUE, row.names=FALSE, sep="  ", quote=FALSE)
-
-      # Writing the file 'PbestPerIter.txt'
-      fname <- paste(file.path(drty.out), "/", "PbestPerIter.txt", sep="") 	
-      write.table(format(pbest.fit.part.iter, scientific=TRUE, digits=digits), file=fname, col.names=TRUE, row.names=FALSE, sep="  ", quote=FALSE)
 
       # Writing the file 'X.neighbours.txt' 
       fname <- paste(file.path(drty.out), "/", "Particles_Neighbours.txt", sep="") 	
@@ -2538,10 +2547,6 @@ hydroPSO <- function(
       # Writing the file 'LocalBest.txt' 
       fname <- paste(file.path(drty.out), "/", "LocalBest.txt", sep="") 	
       write.table(format(LocalBest.fit, scientific=TRUE, digits=digits), file=fname, col.names=TRUE, row.names=FALSE, sep="  ", quote=FALSE)
-
-      # Writing the file 'LocalBestPerIter.txt'
-      fname <- paste(file.path(drty.out), "/", "LocalBestPerIter.txt", sep="") 	
-      write.table(format(LocalBest.fit.part.iter, scientific=TRUE, digits=digits), file=fname, col.names=TRUE, row.names=FALSE, sep="  ", quote=FALSE)
 
       if (fn.name=="hydromod") {
 

@@ -1104,7 +1104,7 @@ Random.Topology.Generation <- function(npart, K,
 # Updates: Dec-2010                                                            #
 #          May-2011    ; 28-Oct-2011 ; 14-Nov-2011 ; 23-Nov-2011 ;             #
 #          15-Jan-2012 ; 23-Jan-2012 ; 30-Jan-2012 ; 23-Feb-2012 ; 23-Mar-2012 #
-#          14-Jun-2012                                                         #
+#          14-Jun-2012 ; 15-Jun-2012                                           #
 ################################################################################
 # 'lower'           : minimum possible value for each parameter
 # 'upper'           : maximum possible value for each parameter
@@ -1326,6 +1326,7 @@ Random.Topology.Generation <- function(npart, K,
 hydroPSO <- function(
                     par, 
                     fn="hydromod",  
+                    ...,
                     method=c("pso", "ipso", "fips", "wfips"),
                     lower=-Inf,
                     upper=Inf,                
@@ -1386,13 +1387,14 @@ hydroPSO <- function(
 	    Xini.type=c("lhs", "random"),  
 	    Vini.type=c("lhs", "random", "zero"), 
 	    best.update=c("sync", "async"),
+	    random.update= TRUE,
 	    boundary.wall=c("reflecting", "damping", "absorbing", "invisible"),
 	    topology=c("random", "gbest", "lbest", "vonNeumann"), K=3, iter.ini=0, ngbest=4, # only used when 'method=ipso'   
 
-	    use.IW = TRUE, IW.type=c("linear", "non-linear", "runif", "aiwf", "GLratio"), IW.w= c(1.2, 0.4), IW.exp= 1, 
-	    use.TVc1= FALSE, TVc1.type=c("non-linear", "linear", "GLratio"), TVc1.rng= c(2.2, 1.8), TVc1.exp= 1.5, 
-	    use.TVc2= FALSE, TVc2.type=c("non-linear", "linear"), TVc2.rng= c(1.8, 2.2), TVc2.exp= 1.5, 
-	    use.TVlambda=FALSE, TVlambda.type=c("non-linear", "linear"), TVlambda.rng= c(0.9, .1), TVlambda.exp= 1.7, 
+	    use.IW = TRUE, IW.type=c("linear", "non-linear", "runif", "aiwf", "GLratio"), IW.w=1/(2*log(2)), IW.exp= 1, 
+	    use.TVc1= FALSE, TVc1.type=c("non-linear", "linear", "GLratio"), TVc1.rng= c(1.28, 1.05), TVc1.exp= 1.5, 
+	    use.TVc2= FALSE, TVc2.type=c("non-linear", "linear"), TVc2.rng= c(1.05, 1.28), TVc2.exp= 1.5, 
+	    use.TVlambda=FALSE, TVlambda.type=c("non-linear", "linear"), TVlambda.rng= c(1, 0.25), TVlambda.exp= 1, 
 	    use.RG = FALSE, RG.thr= 1.1e-4, RG.r= 0.8, RG.miniter= 5, # RG.r not used in reagrouping
 	    
 	    plot=FALSE,                
@@ -1429,6 +1431,7 @@ hydroPSO <- function(
     Xini.type         <- match.arg(control[["Xini.type"]], con[["Xini.type"]]) 
     Vini.type         <- match.arg(control[["Vini.type"]], con[["Vini.type"]]) 
     best.update       <- match.arg(control[["best.update"]], con[["best.update"]]) 
+    random.update     <- as.logical(con[["random.update"]])
     boundary.wall     <- match.arg(control[["boundary.wall"]], con[["boundary.wall"]]) 
     topology          <- match.arg(control[["topology"]], con[["topology"]]) 
     K                 <- con[["K"]]      
@@ -1791,11 +1794,11 @@ hydroPSO <- function(
       writeLines(c("Max Iterations    :", maxit), PSOparam.TextFile, sep=" ") 
       writeLines("", PSOparam.TextFile) 
       writeLines(c("Method            :", method), PSOparam.TextFile, sep=" ") 
+      writeLines("", PSOparam.TextFile) 
       if ( method == "ipso" ) {
 	writeLines(c("ngbest           :", ngbest), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile)  
       } # IF end
-      writeLines("", PSOparam.TextFile) 
       writeLines(c("Topology          :", topology), PSOparam.TextFile, sep=" ") 
       writeLines("", PSOparam.TextFile) 
       if ( (topology == "lbest") | (topology == "random") ) {
@@ -2045,13 +2048,48 @@ hydroPSO <- function(
 	X.neighbours <- Random.Topology.Generation(npart, K, drty.out, iter)
 	
       ModelOut <- vector("list", npart)
+      
+      # IW: linear, non-linear, runif
+      if (!use.IW) {
+         w <- 1   
+      } else {                   
+	   if ( (IW.type == "linear") | (IW.type == "non-linear") ) {
+	      w <- compute.value.with.iter(iter=iter.tv, niter=niter.tv, 
+					   nexp=IW.exp, val.ini=w.ini, 
+					   val.fin=w.fin)                   
+	   } else if (IW.type == "runif") {
+	       w <- runif(1, min=w.ini, max=w.fin)
+             } # ELSE end
+	} # ELSE end 
+
+        # TVc1: linear, non-linear
+	if ( (use.TVc1) & (TVc1.type != "GLratio") ) {
+	  if ( (TVc1.type == "linear") | (TVc1.type == "non-linear") )
+	     c1 <- compute.value.with.iter(iter=iter.tv, niter=niter.tv, 
+					   nexp=TVc1.exp, val.ini=c1.ini, 
+					   val.fin=c1.fin)  
+	} # If end  
+
+        # TVc2
+	if (use.TVc2) 
+	  c2 <- compute.value.with.iter(iter=iter.tv, niter=niter.tv, 
+					nexp=TVc2.exp, val.ini=c2.ini, 
+					val.fin=c2.fin)  
+					
+        # lambda
+	if (use.TVlambda) {
+	  lambda <- compute.value.with.iter(iter=iter.tv, niter=niter.tv, 
+					    nexp=TVlambda.exp, val.ini=vmax.ini, 
+					    val.fin=vmax.fin)  
+	  Vmax   <- lambda*Lmax
+	} # IF end  
 
       ##########################################################################  
       # 3.a) Evaluate the particles fitness
       if ( fn.name != "hydromod" ) {
 
 	 # Evaluating a Test Function 
-	 Xt.fitness[iter, 1:npart] <- apply(X, fn, MARGIN=1)
+	 Xt.fitness[iter, 1:npart] <- apply(X, fn, MARGIN=1, ...)
 	 GoF                       <- Xt.fitness[iter, 1:npart]
 	 ModelOut[1:npart]         <- GoF  ###
 
@@ -2077,9 +2115,9 @@ hydroPSO <- function(
 	       model.FUN.args         <- modifyList(model.FUN.args, list(param.values=X[part,]) ) 
 	       hydromod.out           <- do.call(model.FUN, as.list(model.FUN.args)) 
    
-	       Xt.fitness[iter, part]  <- as.numeric(hydromod.out[["GoF"]])
-	       GoF                     <- Xt.fitness[iter, part]
-               ModelOut[[part]]        <- hydromod.out[["sim"]]
+	       Xt.fitness[iter, part] <- as.numeric(hydromod.out[["GoF"]])
+	       GoF                    <- Xt.fitness[iter, part]
+               ModelOut[[part]]       <- hydromod.out[["sim"]]
 
 	       if(is.finite(GoF)) nfn <- nfn + 1                  
 
@@ -2098,23 +2136,6 @@ hydroPSO <- function(
 
 	} # ELSE end
 
-      if ( plot ) {
-	ifelse(MinMax == "max", lgof <- max(GoF, na.rm=TRUE), lgof <- min(GoF, na.rm=TRUE)) 
-	colorRamp= colorRampPalette(c("darkred", "red", "orange", "yellow", "green", "darkgreen", "cyan"))
-	XX.Boundaries.current <- computeCurrentXmaxMin(X) 
-	xlim <- range(XX.Boundaries.current)
-	ylim <- range(XX.Boundaries.current)
-	if (iter==1) {
-	   plot(X[,1], X[,2], xlim=X.Boundaries[1,], ylim=X.Boundaries[2,], 
-	        main=paste("Iter= ", iter, ". GoF= ", 
-	        format(lgof, scientific=TRUE, digits=digits), sep=""), 
-	        col=colorRamp(npart), cex=0.5 )
-	} else plot(X[,1], X[,2], xlim=X.Boundaries[1,], ylim=X.Boundaries[2,], 
-	            main=paste("Iter= ", iter, ". GoF= ", 
-	            format(lgof, scientific=TRUE, digits=digits), sep=""), 
-	            col=colorRamp(npart), cex=0.5 )
-	#plotParticles2D(X)
-      } # IF end 
 
       if ( best.update == "sync" ) {
 	    tmp <- sync.update.pgbests(x=X, 
@@ -2130,61 +2151,42 @@ hydroPSO <- function(
 	    X.best.part <- tmp[["x.best"]]
 	    gbest.fit   <- tmp[["gbest.fit"]]
 	    gbest.pos   <- tmp[["gbest.pos"]]
-
-      } # IF end
-
-
-      suppressWarnings(ifelse(MinMax=="max", pbest.fit.iter <- max( Xt.fitness[iter, ], na.rm=TRUE ),  
-			                     pbest.fit.iter <- min( Xt.fitness[iter, ], na.rm=TRUE) ) )  
-
-      tmp <- UpdateLocalBest(pbest.fit=pbest.fit, 
+	    
+	    tmp <- UpdateLocalBest(pbest.fit=pbest.fit, 
 			     localBest.pos=LocalBest.pos,
 			     localBest.fit=LocalBest.fit, 
 			     x.neighbours=X.neighbours, 
 			     MinMax=MinMax) 
-      LocalBest.fit <- tmp[["localBest.fit"]]
-      LocalBest.pos <- tmp[["localBest.pos"]]
+            LocalBest.fit <- tmp[["localBest.fit"]]
+            LocalBest.pos <- tmp[["localBest.pos"]]
 
-      if ( method == "ipso" ) {
-	 tmp <- UpdateNgbest(pbest.fit=pbest.fit, 
-			     ngbest=ngbest, 
-			     MinMax=MinMax) 
-	 ngbest.fit <- tmp[["ngbest.fit"]]
-	 ngbest.pos <- tmp[["ngbest.pos"]]
-      } # IF end
+            if ( method == "ipso" ) {
+               tmp <- UpdateNgbest(pbest.fit=pbest.fit, 
+        	                   ngbest=ngbest, 
+        			   MinMax=MinMax) 
+               ngbest.fit <- tmp[["ngbest.fit"]]
+               ngbest.pos <- tmp[["ngbest.pos"]]
+            } # IF end
 
-      GPbest.fit.rate <- mean(pbest.fit, na.rm=TRUE)
-      ifelse( (is.finite(GPbest.fit.rate) ) & ( GPbest.fit.rate !=0 ), 
-	      GPbest.fit.rate <- abs( ( gbest.fit - GPbest.fit.rate ) / GPbest.fit.rate ), 
-	      GPbest.fit.rate <- +Inf)
-
-      ifelse( (gbest.fit.prior != 0) & (is.finite(gbest.fit.prior) ) , 
-	      gbest.fit.rate <- abs( ( gbest.fit - gbest.fit.prior ) / gbest.fit.prior ), 
-	      gbest.fit.rate <- +Inf)
-
-      out <- ComputeSwarmRadiusAndDiameter(x=X, gbest= X.best.part[gbest.pos, ], Lmax=Lmax, 
-					   MinMax=MinMax, pbest.fit=pbest.fit) 
-      swarm.radius    <- out[["swarm.radius"]] 
-      swarm.diameter  <- out[["swarm.diameter"]]
-      NormSwarmRadius <- swarm.radius/swarm.diameter
-
-      if ( (verbose) & ( iter/REPORT == floor(iter/REPORT) ) ) 
-	   message( "iter:", format(iter, width=6, justify="right"), 
-		    "   Gbest:", formatC( gbest.fit, format="E", digits=digits, flag=" "), 
-		    "   Gbest_rate:", format( round(gbest.fit.rate*100, 2), width=6, nsmall=2, justify="left"), "%",
-		    "   Iter_best_fit:", formatC(pbest.fit.iter, format="E", digits=digits, flag=" "),               
-		    "   nSwarm_Radius:", formatC(NormSwarmRadius, format="E", digits=digits, flag=" "),
-		    "   |g-mean(p)|/mean(p):", format( round(GPbest.fit.rate*100, 2), width=6, nsmall=2, justify="left"), "%" )
+      } # IF end 
+      
+      # 'X.bak' is only needed to correctly compute the Normalised Swarm Radious
+      # for the current iteration
+      X.bak <- X           
 
       ##########################################################################  
       ###################   Particles Loop (j) - Start  ########################
       ##########################################################################  
-      for (j in 1:npart) {
+      
+      ifelse(random.update, index.part.upd <- sample(npart), index.part.upd <- 1:npart)
+        
+      for (j in index.part.upd) {
       
         if (write2disk) {
         
-          # File 'Model_Out.txt'
           GoF <- Xt.fitness[iter, j]
+        
+          # File 'Model_Out.txt'          
           if(is.finite(GoF)) {
              writeLines(as.character(c(iter, j, 
 				       formatC(GoF, format="E", digits=digits, flag=" "), 
@@ -2194,9 +2196,9 @@ hydroPSO <- function(
 	  writeLines("", OFout.Text.file) 
           
           # File 'Particles.txt' #
-	  if(is.finite(Xt.fitness[iter, j])) {
+	  if(is.finite(GoF)) {
 	    writeLines(as.character( c(iter, j, 
-				     formatC(Xt.fitness[iter, j], format="E", digits=digits, flag=" "), #GoF
+				     formatC(GoF, format="E", digits=digits, flag=" "), #GoF
 				     formatC(X[j, ], format="E", digits=digits, flag=" ") 
 				      ) ), Particles.TextFile, sep="  ") 
 	  } else writeLines(as.character( c(iter, j, "NA",
@@ -2205,9 +2207,9 @@ hydroPSO <- function(
 	  writeLines("", Particles.TextFile)
         
 	  # File 'Velocities.txt' #
-	  if(is.finite(Xt.fitness[iter, j])) {
+	  if(is.finite(GoF)) {
 	    writeLines( as.character( c(iter, j, 
-					formatC(Xt.fitness[iter, j], format="E", digits=digits, flag=" "), # GoF
+					formatC(GoF, format="E", digits=digits, flag=" "), # GoF
 					formatC(V[j, ], format="E", digits=digits, flag=" ")                                            
 					) ), Velocities.TextFile, sep="  ") 
 	  } else writeLines( as.character( c(iter, j, "NA",
@@ -2233,16 +2235,30 @@ hydroPSO <- function(
 	   X.best.part[j,] <- tmp[["x.best"]]       
 	   gbest.pos       <- tmp[["gbest.pos"]] 
 	   gbest.fit       <- tmp[["gbest.fit"]] 
+	   
+	   tmp <- UpdateLocalBest(pbest.fit=pbest.fit, 
+			     localBest.pos=LocalBest.pos,
+			     localBest.fit=LocalBest.fit, 
+			     x.neighbours=X.neighbours, 
+			     MinMax=MinMax) 
+           LocalBest.fit <- tmp[["localBest.fit"]]
+           LocalBest.pos <- tmp[["localBest.pos"]]
+
+           if ( method == "ipso" ) {
+              tmp <- UpdateNgbest(pbest.fit=pbest.fit, 
+                                  ngbest=ngbest, 
+                                  MinMax=MinMax) 
+              ngbest.fit <- tmp[["ngbest.fit"]]
+              ngbest.pos <- tmp[["ngbest.pos"]]
+           } # IF end
 
 	} # IF end  
-
-
-	if (use.IW) {                   
-	   if ( (IW.type == "linear") | (IW.type == "non-linear") ) {
-	      w <- compute.value.with.iter(iter=iter.tv, niter=niter.tv, 
-					   nexp=IW.exp, val.ini=w.ini, 
-					   val.fin=w.fin)                   
-	   } else if (IW.type == "aiwf") { 
+	
+	### IW, TVc1, Tv2, lambda
+	
+	# IW: aiwf, GLratio
+	if (use.IW) { 
+	  if (IW.type == "aiwf") { 
 	        w <- compute.w.aiwf(iter.fit= Xt.fitness[iter, ],
                                     particle.pos =j, 
                                     gbest.fit=gbest.fit, 
@@ -2251,34 +2267,15 @@ hydroPSO <- function(
                                     MinMax=MinMax
                                     )   
 
-	     } else if (IW.type == "GLratio") {
+	  } else if (IW.type == "GLratio") {
 		w <- compute.w.with.GLratio(MinMax, gbest.fit, pbest.fit)   
-	       }  else if (IW.type == "runif") {
-		  w <- runif(1, min=w.ini, max=w.fin)
-		  } # ELSE end
-	} else w <- 1    
-
-	if (use.TVc1) {
-	  if ( (TVc1.type == "linear") | (TVc1.type == "non-linear") ) {
-	     c1 <- compute.value.with.iter(iter=iter.tv, niter=niter.tv, 
-					   nexp=TVc1.exp, val.ini=c1.ini, 
-					   val.fin=c1.fin)
-	  } else if (TVc1.type == "GLratio") { 
-		      c1 <- compute.c1.with.GLratio(MinMax, gbest.fit, pbest.fit[j])   
-	    }  # ELSE IF end    
-	} # If end  
-
-	if (use.TVc2) 
-	  c2 <- compute.value.with.iter(iter=iter.tv, niter=niter.tv, 
-					nexp=TVc2.exp, val.ini=c2.ini, 
-					val.fin=c2.fin)  
-
-	if (use.TVlambda) {
-	  lambda <- compute.value.with.iter(iter=iter.tv, niter=niter.tv, 
-					    nexp=TVlambda.exp, val.ini=vmax.ini, 
-					    val.fin=vmax.fin)  
-	  Vmax   <- lambda*Lmax
-	} # IF end         
+	    }  # ELSE end
+	} # IF end
+	
+	
+	# TVc1: GLratio
+	if ( (use.TVc1) & (TVc1.type == "GLratio") ) 
+           c1 <- compute.c1.with.GLratio(MinMax, gbest.fit, pbest.fit[j])   
 
 	######################################################################## 
 	# 3.b) Updating the velocity of all the particles
@@ -2317,9 +2314,53 @@ hydroPSO <- function(
       } # FOR j end: Particles Loop
       ##########################################################################  
       ###################   Particles Loop (j) - End  ##########################
-      ##########################################################################  
-
+      ########################################################################## 
+       
+      if ( plot ) {
+	ifelse(MinMax == "max", lgof <- max(GoF, na.rm=TRUE), lgof <- min(GoF, na.rm=TRUE)) 
+	colorRamp= colorRampPalette(c("darkred", "red", "orange", "yellow", "green", "darkgreen", "cyan"))
+	XX.Boundaries.current <- computeCurrentXmaxMin(X) 
+	xlim <- range(XX.Boundaries.current)
+	ylim <- range(XX.Boundaries.current)
+	if (iter==1) {
+	   plot(X[,1], X[,2], xlim=X.Boundaries[1,], ylim=X.Boundaries[2,], 
+	        main=paste("Iter= ", iter, ". GoF= ", 
+	        format(lgof, scientific=TRUE, digits=digits), sep=""), 
+	        col=colorRamp(npart), cex=0.5 )
+	} else plot(X[,1], X[,2], xlim=X.Boundaries[1,], ylim=X.Boundaries[2,], 
+	            main=paste("Iter= ", iter, ". GoF= ", 
+	            format(lgof, scientific=TRUE, digits=digits), sep=""), 
+	            col=colorRamp(npart), cex=0.5 )
+	#plotParticles2D(X)
+      } # IF end 
+      
       gbest.fit.iter[iter] <- gbest.fit
+      
+      suppressWarnings(ifelse(MinMax=="max", pbest.fit.iter <- max( Xt.fitness[iter, ], na.rm=TRUE ),  
+			                     pbest.fit.iter <- min( Xt.fitness[iter, ], na.rm=TRUE) ) )  
+
+      GPbest.fit.rate <- mean(pbest.fit, na.rm=TRUE)
+      ifelse( (is.finite(GPbest.fit.rate) ) & ( GPbest.fit.rate !=0 ), 
+	      GPbest.fit.rate <- abs( ( gbest.fit - GPbest.fit.rate ) / GPbest.fit.rate ), 
+	      GPbest.fit.rate <- +Inf)
+
+      ifelse( (gbest.fit.prior != 0) & (is.finite(gbest.fit.prior) ) , 
+	      gbest.fit.rate <- abs( ( gbest.fit - gbest.fit.prior ) / gbest.fit.prior ), 
+	      gbest.fit.rate <- +Inf)
+
+      out <- ComputeSwarmRadiusAndDiameter(x=X.bak, gbest= X.best.part[gbest.pos, ], Lmax=Lmax, 
+					   MinMax=MinMax, pbest.fit=pbest.fit) 
+      swarm.radius    <- out[["swarm.radius"]] 
+      swarm.diameter  <- out[["swarm.diameter"]]
+      NormSwarmRadius <- swarm.radius/swarm.diameter
+
+      if ( (verbose) & ( iter/REPORT == floor(iter/REPORT) ) ) 
+	   message( "iter:", format(iter, width=6, justify="right"), 
+		    "   Gbest:", formatC( gbest.fit, format="E", digits=digits, flag=" "), 
+		    "   Gbest_rate:", format( round(gbest.fit.rate*100, 2), width=6, nsmall=2, justify="left"), "%",
+		    "   Iter_best_fit:", formatC(pbest.fit.iter, format="E", digits=digits, flag=" "),               
+		    "   nSwarm_Radius:", formatC(NormSwarmRadius, format="E", digits=digits, flag=" "),
+		    "   |g-mean(p)|/mean(p):", format( round(GPbest.fit.rate*100, 2), width=6, nsmall=2, justify="left"), "%" )
 
       ##########################################################################  
       # Random Generation around gbest, if requested                           #

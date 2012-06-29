@@ -14,7 +14,7 @@ Enhanced Particle Swarm Optimisation algorithm
 Particle Swarm Optimisation algorithm to calibrate environmental models. It includes a series of controlling options and PSO variants to improve the performance of the algorithm and customize it to different calibration problems
 }
 \usage{
-hydroPSO(par, fn= "hydromod", method=c("pso", "ipso", "fips", "wfips"),
+hydroPSO(par, fn= "hydromod", ..., method=c("pso", "ipso", "fips", "wfips"),
          lower=-Inf, upper=Inf, control=list(), 
          model.FUN=NULL, model.FUN.args=list() )
 }
@@ -25,8 +25,13 @@ OPTIONAL. numeric with a first guess for the parameters to be optimised (\env{n}
 All the particles are randomly initialised according to the value of \code{Xini.type}. If the user provides \env{m} parameter sets for \code{par}, they are used to overwrite the first \env{m} parameter sets randomly defined according to the value of \code{Xini.type}. If some elements in \code{par} are non finite (lower than \code{lower} or larger than \code{upper}) they are ignored \cr
 }
   \item{fn}{
-character, name of a valid R function \code{c('sphere','ackley','griewank','rastrigin','rosenbrock','schafferF6')} to be optimised or character value \sQuote{'hydromod'}. When \code{fn='hydromod'} the algorithm uses \code{model.FUN} and \code{model.FUN.args} to extract the values simulated by the model and to compute its corresponding goodness-of-fit function. When \code{fn!='hydromod'} the algorithm uses the value(s) returned by \code{fn} as both model output and its corresponding goodness-of-fit \cr
-When \code{fn='hydromod'} the algorithm will optimise the model defined by \code{model.FUN} and \code{model.args}
+character, name of a valid R function to be optimised (minimized or maximized) or the character value \sQuote{'hydromod'}. \cr
+-) When \code{fn!='hydromod'}, the first argument of \code{fn} has to be a vector of parameters over which optimisation is to take place. It should return a scalar result. When \code{fn!='hydromod'} the algorithm uses the value(s) returned by \code{fn} as both model output and its corresponding goodness-of-fit measure. \cr
+-) When \code{fn=='hydromod'} the algorithm will optimise the model defined by \code{model.FUN} and \code{model.args}, which are used to extract the values simulated by the model and to compute its corresponding goodness-of-fit measure. 
+}
+\item{\dots}{
+OPTIONAL. Only used when \code{fn!='hydromod'}. \cr
+further arguments to be passed to \code{fn}.
 }
   \item{method}{
 character, variant of the PSO algorithm to be used. Valid values are in \code{c('pso', 'ipso', 'fips', 'wfips')}: \cr
@@ -37,9 +42,6 @@ character, variant of the PSO algorithm to be used. Valid values are in \code{c(
 \kbd{wfips}: same implementation as \kbd{fips} method, but the contribution of each particle is weighted according to their goodness-of-fit value (see Mendes et al., 2004) \cr
 By default \code{method=pso}
 }
-%%\item{\dots}{
-%%further arguments to be passed to \code{fn}
-%%}
   \item{lower}{
 numeric, lower boundary for each parameter \cr
 Note for \code{\link[stats]{optim}} users: in \kbd{hydroPSO} the length of \code{lower} and \code{upper} are used to defined the dimension of the solution space
@@ -112,7 +114,7 @@ numeric, absolute convergence tolerance. The algorithm stops if \code{gbest <= a
 By default it is set to \code{-Inf} or \code{+Inf} for minimisation or maximisation problems, respectively
 }
   \item{reltol}{
-numeric, relative convergence tolerance. The algorithm stops if the normalised swarm radious is lower or equal to \code{reltol} at a given iteration. Defaults to \code{sqrt(.Machine$double.eps)}, typically, about 1e-8
+numeric, relative convergence tolerance. The algorithm stops if the absolute difference between the best \sQuote{personal best} in the current iteration and the best \sQuote{personal best} in the previous iteration is lower or equal to \code{reltol}. Defaults to \code{sqrt(.Machine$double.eps)}, typically, about 1e-8
 }
   \item{Xini.type}{
 character, indicates how to initialise the particles' positions in the swarm within the ranges defined by \code{lower} and \code{upper}. Valid values are: \cr
@@ -128,9 +130,13 @@ character, indicates how to initialise the particles' velocities in the swarm. V
 By default \code{Vini.type=lhs}
 }
   \item{best.update}{
-character, indicates how (when) to update the global and local best. Valid values are: \cr
+character, indicates how (when) to update the global/neighbourhood and personal best. Valid values are: \cr
 -)\kbd{sync}: the update is made synchronously, i.e. after computing the position and goodness-of-fit for ALL the particles in the swarm. This is the DEFAULT option\cr
 -)\kbd{async}: the update is made asynchronously, i.e. after computing the position and goodness-of-fit for EACH individual particle in the swarm
+}
+  \item{random.update}{
+OPTIONAL. Only used when \code{best.update='async'}. \cr
+logical, if \code{TRUE} the particles are processed in random order to update their personal best and the global/neighbourhood best. By default \code{random.update=TRUE}
 }
   \item{boundary.wall}{
 character, indicates the type of boundary condition to be applied during optimisation. Valid values are in \code{c('reflecting', 'damping', 'absorbing', 'invisible')} \cr
@@ -243,7 +249,7 @@ numeric, initial and final values for the percentage to limit the maximum veloci
   \item{TVlambda.exp}{
 OPTIONAL. only required when \code{use.TVlambda= TRUE} AND \code{TVlambda.type='non-linear'} \cr
 numeric, non-linear modulation index \cr
-When \code{TVlambda.type= linear} \code{TVlambda.exp} is automatically set to 1 
+When \code{TVlambda.type='linear'} \code{TVlambda.exp} is automatically set to 1 
 }
   \item{use.RG}{
 logical, indicates if the swarm should be regrouped when premature convergence is detected. When \code{use.RG=TRUE} the swarm is regrouped in a search space centred around the current global best. This updated search space is hoped to be both small enough for efficient search and large enough to allow the swarm to escape from stagnation (see Evers and Ghalia, 2009)

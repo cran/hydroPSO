@@ -1,8 +1,31 @@
 NEWS/ChangeLog for hydroPSO
 --------------------------
 
+0.1-57	29-Jun-2012
+        o 'hydroPSO'    : -) added '...' parameter. It is only used when 'fn' is different from "hydromod". This is only done for 'optim' compatibility.
+                          -) fixed small bug related to improper PSO evolution when 'best.update'=="async" (NOT the default option !) 
+                             AND (topology!="gbest" | method!="pso")
+                          -) new 'random.update' parameter for the 'control' variable, in order to allow random update of personal/global best
+                          -) default value of the inertia weight 'IW' was changed from (linearly decreasing) IW.w= c(1.2, 0.4) to 'IW.w=1/(2*log(2))'
+                          -) default value for the time-varying c1 was changed from (non-linearly decreasing) 'TVc1.rng= c(2.2, 1.8)' to 
+                             'TVc1.rng= c(1.28, 1.05)'. However, by default 'use.TVc1= FALSE' still.
+                          -) default value for the time-varying c2 was changed from (non-linearly increasing) 'TVc1.rng= c(1.8, 2.2)' to 
+                             'TVc2.rng= c(1.05, 1.28)'. However, by default 'use.TVc2= FALSE' still.
+                          -) default value for the time-varying lambda was changed from (non-linearly decreasing) 'TVlambda.rng= c(0.9, 0.1)' to 
+                             'TVlambda.rng= c(1, 0.25)'. However, by default 'use.TVlambda= FALSE' still.
+                          -) default value for the exponent of the time-varying lambda was changed from 'TVlambda.exp= 1.7' to 'TVlambda.exp= 1'.
+                             However, by default 'use.TVlambda= FALSE' still.
+                          -) source code was tidy up
+        o 'plot_out'    : -) Fixed error that appeared when the 'plot_out' function was called from an R script running directly on the OS console 
+                             (not within the R editor), with the following error message:
+                             "Error in plot2(x = sim, y = obs, plot.type = "single", main = paste("Daily",  : 
+                              could not find function "hasArg"
+                             Calls: plot_results -> plot_out -> ggof -> plot2"
+        o 'plot_results': -) Same as immediately above (because 'plot_results' internally calls 'plot_out')
+                           
+                             
 0.1-56	14-Jun-2012
-        o 'hydroPSO'    : -) much less memory consumption for large values of 'maxit' and/or 'npart'.
+        o 'hydroPSO'    : -) much less memory consumption for large values of 'maxit' and/or 'npart' (thanks to  Paul Smith for reporting it !)
                              The files 'BestParamPerIter.txt', 'PbestPerIter.txt', 'LocalBestPerIter.txt', 'Velocities.txt' are now written at the end of 
                              each iteration, and not at the end of the main algorithm (so the corresponding local variables were removed)
                           -) the convergence of the algorithm controlled by 'reltol' is now defined by : abs(reltol) <= abs(best.pbest[iter] - best.pbest[iter-1]), 

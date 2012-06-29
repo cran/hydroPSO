@@ -2,8 +2,8 @@ Package: hydroPSO
 Type: Package
 Title: Model-Independent Particle Swarm Optimisation for Environmental
         Models
-Version: 0.1-56
-Date: 2012-06-14
+Version: 0.1-57
+Date: 2012-06-29
 Author: Mauricio Zambrano-Bigiarini [aut, cre] and Rodrigo Rojas [ctb]
 Author@R: c(person("Mauricio", "Zambrano-Bigiarini", email =
         "mzb.devel@gmail.com", role=c("aut", "cre") ),
@@ -32,6 +32,6 @@ Classification: optimisation, optimization, calibration, environment,
         environmental sciences, hydrology, PSO
 LazyLoad: yes
 ByteCompile: TRUE
-Packaged: 2012-06-14 07:48:16 UTC; zambrhe
+Packaged: 2012-06-29 09:28:42 UTC; zambrhe
 Repository: CRAN
-Date/Publication: 2012-06-14 15:13:12
+Date/Publication: 2012-06-29 10:46:40

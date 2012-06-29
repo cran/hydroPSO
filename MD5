@@ -1,11 +1,11 @@
 b234ee4d69f5fce4486a80fdaf4a4263 *COPYING
 3a34e1540075b8a71fca39610f35059c *ChangeLog
-cfce9542e3e323e44e0b819f4a0a1ebf *DESCRIPTION
+055ecbb5e7673bab5ea7089bca8e93c7 *DESCRIPTION
 427f6a6f16efba8cb6b2fe976702d25c *LICENCE
-df4adf1c79bbf9fa98e983ce110a78c4 *NAMESPACE
-cb7d34bbe294a176bffc073112f30cfb *NEWS
+d8594eede43c62e8b3be2c0322bfb813 *NAMESPACE
+8dc489de6275d16d93086b41dc364c4b *NEWS
 ccc7b11d688ea2493a81becbeb179810 *R/ModifyInputFile.R
-ab53be7d824c547aaf4f02dd2bdace3a *R/PSO_v2012.R
+0e06991e570d2e54c28f5a986bc95bf3 *R/PSO_v2012.R
 a84d120595e54b5ddba83b3aee5d4946 *R/ParameterValues2InputFiles.R
 f894df31162e3139ce28934bc2f5d633 *R/hydromod.R
 b3ce2381d2a98e91b4332fcc9067bfe4 *R/lhoat.R
@@ -15,7 +15,7 @@ c50dc00ce72565307f23a31450732530 *R/plot_GofPerParticle.R
 bb5dd5ad619b24d23eacd7861bedf40e *R/plot_NparOF.R
 af379ca4a303d36cabe6981c3c19c4e7 *R/plot_ParamsPerIter.R
 9bcabdd10c1231d9858ea747f6dc9ac7 *R/plot_convergence.R
-9ce581aa82857c6987992984f6d8e03d *R/plot_out.R
+0b6ecb293c49f430b854c00a7d0b0502 *R/plot_out.R
 b42358bde531fbb69ebaca1ab1b02536 *R/plot_params.R
 d5357180e3e81497fe44a80c421f000e *R/plot_particles.R
 d4a6a9f796c2958a836cdc6030747741 *R/plot_results.R
@@ -41,8 +41,8 @@ fdc326c6fc312d5228250d6ee3d4e2de *man/ReadPlot_out.Rd
 3179c124d48ddcb9d52f4d493be5c370 *man/ReadPlot_particles.Rd
 ebb36177baf2ce9d9660da3653be8416 *man/ReadPlot_results.Rd
 3dc60aaafc0abefb420bb96671c57919 *man/hydroPSO-internal.Rd
-37d2df90ac42cfdf02e500fd854b3604 *man/hydroPSO-package.Rd
-a10dd6f5477a3269508fd79643632777 *man/hydroPSO.Rd
+b89976762289f1c7c6dde2cbe93300bc *man/hydroPSO-package.Rd
+385cf0decb98073a3e7d3e4b3a313835 *man/hydroPSO.Rd
 e5073a5e78430642d4ac389709c2735c *man/hydromod.Rd
 c8295be70c1b36e1c300c0900bdcc219 *man/lhoat.Rd
 45ddf25a6df4d989866231349cc4ae32 *man/params2ecdf.Rd

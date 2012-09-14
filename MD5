@@ -1,11 +1,11 @@
 b234ee4d69f5fce4486a80fdaf4a4263 *COPYING
 3a34e1540075b8a71fca39610f35059c *ChangeLog
-055ecbb5e7673bab5ea7089bca8e93c7 *DESCRIPTION
+59d6a247508aff91deb540819a39a05e *DESCRIPTION
 427f6a6f16efba8cb6b2fe976702d25c *LICENCE
-d8594eede43c62e8b3be2c0322bfb813 *NAMESPACE
-8dc489de6275d16d93086b41dc364c4b *NEWS
+de9888e738b1fa8a803406e2f2d438cf *NAMESPACE
+994167a40c589571262555b452ff5c3b *NEWS
 ccc7b11d688ea2493a81becbeb179810 *R/ModifyInputFile.R
-0e06991e570d2e54c28f5a986bc95bf3 *R/PSO_v2012.R
+512fa1b5ad5db76bb4c1192f12a684f4 *R/PSO_v2012.R
 a84d120595e54b5ddba83b3aee5d4946 *R/ParameterValues2InputFiles.R
 f894df31162e3139ce28934bc2f5d633 *R/hydromod.R
 b3ce2381d2a98e91b4332fcc9067bfe4 *R/lhoat.R
@@ -30,7 +30,7 @@ fa0ab8632f671935d290f70cefdcf239 *R/read_params.R
 321734c9d3f29dfaf376dc7115b2f079 *R/read_particles.R
 cab40352d727e7c2a0a24a2666800bf5 *R/read_results.R
 a11d0701c7f8d7ab7a2aab7da07e308d *R/read_velocities.R
-8e57acde5c36601cb383bccb9f8dcdff *R/test_functions.R
+f6d36dd58503441856ed2747d0bc5a20 *R/test_functions.R
 9338ec71b2a4c605f4582a74382b3577 *R/verification.R
 acc611f5b8cd62b80b6749eecf3cffe4 *R/wquantile.R
 e17a88f95254aa1e77647066f9e09da0 *R/zl.R
@@ -39,10 +39,10 @@ e17a88f95254aa1e77647066f9e09da0 *R/zl.R
 fdc326c6fc312d5228250d6ee3d4e2de *man/ReadPlot_out.Rd
 4120cc5065805375a1500c7e5d119d22 *man/ReadPlot_params.Rd
 3179c124d48ddcb9d52f4d493be5c370 *man/ReadPlot_particles.Rd
-ebb36177baf2ce9d9660da3653be8416 *man/ReadPlot_results.Rd
+349bab4c756662a823c5a822e1cf639b *man/ReadPlot_results.Rd
 3dc60aaafc0abefb420bb96671c57919 *man/hydroPSO-internal.Rd
-b89976762289f1c7c6dde2cbe93300bc *man/hydroPSO-package.Rd
-385cf0decb98073a3e7d3e4b3a313835 *man/hydroPSO.Rd
+283bd5ca8a6bbccef43127de1d30063d *man/hydroPSO-package.Rd
+7e04e59ea74aefeed1ad7e820ac9cc0b *man/hydroPSO.Rd
 e5073a5e78430642d4ac389709c2735c *man/hydromod.Rd
 c8295be70c1b36e1c300c0900bdcc219 *man/lhoat.Rd
 45ddf25a6df4d989866231349cc4ae32 *man/params2ecdf.Rd
@@ -51,6 +51,6 @@ f62af583f9b1fbe7ed0e9d2457e365e9 *man/plot_2parOF.Rd
 39a146151d018f50d67f31c4ae073849 *man/plot_ParamsPerIter.Rd
 d2185109370aa97cc1ed99933ef458f0 *man/quant2ecdf.Rd
 6a5aa927958b82a989eef9e9952eb0b7 *man/read_best.Rd
-d1c4d47a4b333de8095255323bd9c276 *man/test_functions.Rd
+ab6fa323a76fb3b9686690842e55631b *man/test_functions.Rd
 f3cfc8291604513be91add2595fdefa3 *man/verification.Rd
 afc2f3597c75dfaf9ffc857f26bf1b62 *man/wquantile.Rd

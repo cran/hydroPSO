@@ -1074,7 +1074,7 @@ RegroupingSwarm <- function(x,
 ################################################################################
 # Purpose: Function for creating a random topology, as implemented on the 
 #          Standard PSO 2007
-###############################################################################
+################################################################################
 Random.Topology.Generation <- function(npart, K, 
                                        psoout.drty, iter # only needed during testing phase
                                        ) { 
@@ -1096,6 +1096,56 @@ Random.Topology.Generation <- function(npart, K,
 
 
 ################################################################################
+###  Function for evaluating the hydrological model for a single particle  #####
+################################################################################
+### Started: 21-Jun-2011                                                     ###
+### Updates: 28-Jun-2011                                                     ###
+###          19-Jun-2012 ; 03-Jul-2012                                       ###
+################################################################################
+hydromod.eval <- function(part, Particles, iter, npart, maxit, 
+                          REPORT, verbose, digits, 
+                          model.FUN, model.FUN.args 
+                          ) {
+
+  if ( iter/REPORT == floor(iter/REPORT) ) {
+    if (verbose) message("================================================================================")
+    if (verbose) message( "[Iter: ", format( iter, width=4, justify="left" ), "/", maxit, 
+					   ".  Particle: ", format( part, width=4, justify="left" ), "/", npart, 
+				   ":  Starting...]" )
+    if (verbose) message("================================================================================")
+  } # IF end
+    
+  # Creating the R output
+  nelements <- 2        
+  out       <- vector("list", nelements)
+
+  # Evaluating the hydrological model
+  model.FUN.args <- modifyList(model.FUN.args, list(param.values=Particles[part,]) ) 
+  hydromod.out   <- do.call(model.FUN, as.list(model.FUN.args)) 
+   
+  out[[1]] <- as.numeric(hydromod.out[["GoF"]])
+  out[[2]] <- hydromod.out[["sim"]]
+  
+  # meaningful names
+  names(out)[1:nelements] <- c("GoF", "model.out") 
+
+  if ( iter/REPORT == floor(iter/REPORT) ) {
+    if (verbose) message("================================================================================")
+    if (verbose) message( "[Iter: ", format( iter, width=4, justify="left" ), "/", maxit,  
+                          ".   Particle: ", format( part, width=4, justify="left" ), "/", npart,  
+                          ".   Finished !.   GoF: ", format(hydromod.out[["GoF"]], scientific=TRUE, digits=digits), 
+                          "]" )
+    if (verbose) message("================================================================================")
+    if (verbose) message("                                    |                                           ")  
+    if (verbose) message("                                    |                                           ")    
+  } # IF end
+        
+  return(out)
+  
+} # 'hydromod.eval' END
+
+
+################################################################################
 #                                    P.S.O.                                    #
 ################################################################################
 # Author : Mauricio Zambrano-Bigiarini                                         #
@@ -1104,13 +1154,14 @@ Random.Topology.Generation <- function(npart, K,
 # Updates: Dec-2010                                                            #
 #          May-2011    ; 28-Oct-2011 ; 14-Nov-2011 ; 23-Nov-2011 ;             #
 #          15-Jan-2012 ; 23-Jan-2012 ; 30-Jan-2012 ; 23-Feb-2012 ; 23-Mar-2012 #
-#          14-Jun-2012 ; 15-Jun-2012                                           #
+#          14-Jun-2012 ; 15-Jun-2012 ; 03-Jul-2012 ; 06-Jul-2012               #
+#          11-Jul-2012 ; 17-Jul-2012 ; 18-Jul-2012 ; 13-Sep-2012; 14-Sep-2012  #                         
 ################################################################################
 # 'lower'           : minimum possible value for each parameter
 # 'upper'           : maximum possible value for each parameter
 # 'of.name'         : String with the test function that will be used for computing the fitness.
 #                     Valid values are in: c('sinc', 'rosenbrock', 'sphere', 
-#                     'rastrigrin', 'griewank', 'schafferF6', 'hydromod')
+#                     'rastrigin', 'griewank', 'schafferF6', 'hydromod')
 # 'MinMax'          : character, indicating if PSO have to find a minimum or a 
 #                     maximum for the fitness function.
 #                     Valid values are in: c('min', 'max')
@@ -1387,7 +1438,7 @@ hydroPSO <- function(
 	    Xini.type=c("lhs", "random"),  
 	    Vini.type=c("lhs", "random", "zero"), 
 	    best.update=c("sync", "async"),
-	    random.update= TRUE,
+	    random.update=TRUE,
 	    boundary.wall=c("reflecting", "damping", "absorbing", "invisible"),
 	    topology=c("random", "gbest", "lbest", "vonNeumann"), K=3, iter.ini=0, ngbest=4, # only used when 'method=ipso'   
 
@@ -1406,19 +1457,27 @@ hydroPSO <- function(
 	    REPORT=100 
 	       )
 
+    MinMax        <- match.arg(control[["MinMax"]], con[["MinMax"]])
+    Xini.type     <- match.arg(control[["Xini.type"]], con[["Xini.type"]]) 
+    Vini.type     <- match.arg(control[["Vini.type"]], con[["Vini.type"]]) 
+    best.update   <- match.arg(control[["best.update"]], con[["best.update"]]) 
+    boundary.wall <- match.arg(control[["boundary.wall"]], con[["boundary.wall"]]) 
+    topology      <- match.arg(control[["topology"]], con[["topology"]]) 
+    IW.type       <- match.arg(control[["IW.type"]], con[["IW.type"]])
+    TVc1.type     <- match.arg(control[["TVc1.type"]], con[["TVc1.type"]]) 
+    TVc2.type     <- match.arg(control[["TVc2.type"]], con[["TVc2.type"]]) 
+    TVlambda.type <- match.arg(control[["TVlambda.type"]], con[["TVlambda.type"]])
+        	       
     nmsC <- names(con)
-
     con[(namc <- names(control))] <- control
-
     if (length(noNms <- namc[!namc %in% nmsC])) 
-      warning("[Unknown names in control: ", paste(noNms, collapse = ", "), " (not used) !]")
+      warning("[Unknown names in control: ", paste(noNms, collapse = ", "), " (not used) !]")	       
 
     drty.in           <- con[["drty.in"]]
     drty.out          <- con[["drty.out"]]
     param.ranges      <- con[["param.ranges"]]         
     digits            <- con[["digits"]]
 
-    MinMax            <- match.arg(control[["MinMax"]], con[["MinMax"]])
     npart             <- ifelse(is.na(con[["npart"]]),ceiling(10+2*sqrt(n)),con[["npart"]])
     maxit             <- con[["maxit"]] 
     maxfn             <- con[["maxfn"]] 
@@ -1428,29 +1487,20 @@ hydroPSO <- function(
     lambda            <- con[["lambda"]]  
     abstol            <- con[["abstol"]]     
     reltol            <- con[["reltol"]]             
-    Xini.type         <- match.arg(control[["Xini.type"]], con[["Xini.type"]]) 
-    Vini.type         <- match.arg(control[["Vini.type"]], con[["Vini.type"]]) 
-    best.update       <- match.arg(control[["best.update"]], con[["best.update"]]) 
     random.update     <- as.logical(con[["random.update"]])
-    boundary.wall     <- match.arg(control[["boundary.wall"]], con[["boundary.wall"]]) 
-    topology          <- match.arg(control[["topology"]], con[["topology"]]) 
     K                 <- con[["K"]]      
     iter.ini          <- con[["iter.ini"]]
     ngbest            <- con[["ngbest"]]             
     use.IW            <- as.logical(con[["use.IW"]])
-    IW.type           <- match.arg(control[["IW.type"]], con[["IW.type"]]) 
     IW.w              <- con[["IW.w"]]
     IW.exp            <- con[["IW.exp"]]
     use.TVc1          <- as.logical(con[["use.TVc1"]])
-    TVc1.type         <- match.arg(control[["TVc1.type"]], con[["TVc1.type"]]) 
     TVc1.rng          <- con[["TVc1.rng"]]
     TVc1.exp          <- con[["TVc1.exp"]]
     use.TVc2          <- as.logical(con[["use.TVc2"]])
-    TVc2.type         <- match.arg(control[["TVc2.type"]], con[["TVc2.type"]]) 
     TVc2.rng          <- con[["TVc2.rng"]]
     TVc2.exp          <- con[["TVc2.exp"]]
     use.TVlambda      <- as.logical(con[["use.TVlambda"]])
-    TVlambda.type     <- match.arg(control[["TVlambda.type"]], con[["TVlambda.type"]]) 
     TVlambda.rng      <- con[["TVlambda.rng"]]
     TVlambda.exp      <- con[["TVlambda.exp"]]
     use.RG            <- as.logical(con[["use.RG"]])
@@ -1469,7 +1519,7 @@ hydroPSO <- function(
 
     if (maxit < REPORT) {
       REPORT <- maxit
-      warning("'REPORT' is greater than 'maxit' => 'REPORT=maxit'")
+      warning("[ 'REPORT' is greater than 'maxit' => 'REPORT=maxit' ]")
     } # IF end
 
     if ( (lambda < 0) | (lambda >1) )
@@ -1477,7 +1527,7 @@ hydroPSO <- function(
 
     if ( K > npart ) {
       K <- npart
-      warning("'K' is greater than 'npart' => 'K=npart'")
+      warning("[ 'K' is greater than 'npart' => 'K=npart' ]")
     } # IF end
 
     if ( (K < 1) | (floor(K) != K) ) {
@@ -1530,7 +1580,7 @@ hydroPSO <- function(
 	} # ELSE end
 
       if ( length(model.FUN.args)==0 ) {
-	warning( "'model.FUN.args' is an empty list. Are you sure your model doesn't have any argument(s) ?" )
+	warning( "[ 'model.FUN.args' is an empty list. Are you sure your model does not have any argument(s) ? ]" )
       } else {
 	  model.FUN.argsDefaults <- formals(model.FUN)
 	  model.FUN.args         <- modifyList(model.FUN.argsDefaults, model.FUN.args) 
@@ -1575,14 +1625,14 @@ hydroPSO <- function(
 
     if (Xini.type=="lhs") { 
 	if ( is.na( match("lhs", installed.packages()[,"Package"] ) ) ) {
-	    warning("Package 'lhs' is not installed =>  Xini.type='random'")
+	    warning("[ Package 'lhs' is not installed =>  Xini.type='random' ]")
 	    Xini.type <- "random"
 	}  # IF end  
     } # IF end
 
     if (Vini.type=="lhs") { 
 	if ( is.na( match("lhs", installed.packages()[,"Package"] ) ) ) {
-	    warning("Package 'lhs' is not installed =>  Vini.type='random'")
+	    warning("[ Package 'lhs' is not installed =>  Vini.type='random' ]")
 	    Vini.type <- "random"
 	}  # IF end  
     } # IF end
@@ -1600,7 +1650,7 @@ hydroPSO <- function(
 
        if  (IW.type == "linear") {
 	   if (IW.exp != 1) {
-	     warning("IW.type == 'linear' => 'IW.exp=1'")
+	     warning("[ IW.type == 'linear' => 'IW.exp=1' ]")
 	     IW.exp= 1 
 	   } # IF end
        } # IF end                
@@ -1622,7 +1672,7 @@ hydroPSO <- function(
        c1.fin <- TVc1.rng[2]                
        if  (TVc1.type == "linear") {
 	   if (TVc1.exp != 1) {
-	     warning("TVc1.type == 'linear' => 'TVc1.exp=1'")
+	     warning("[ TVc1.type == 'linear' => 'TVc1.exp=1' ]")
 	     TVc1.exp= 1 
 	   } # IF end
        } # IF end              
@@ -1633,7 +1683,7 @@ hydroPSO <- function(
        c2.fin <- TVc2.rng[2]                  
        if  (TVc2.type == "linear") {
 	   if (TVc2.exp != 1) {
-	     warning("TVc2.type == 'linear' => 'TVc2.exp=1'")
+	     warning("[ TVc2.type == 'linear' => 'TVc2.exp=1' ]")
 	     TVc2.exp= 1 
 	   } # IF end
        } # IF end             
@@ -1645,7 +1695,7 @@ hydroPSO <- function(
        vmax.fin <- TVlambda.rng[2]                  
        if  (TVlambda.type == "linear") {
 	   if (TVlambda.exp != 1) {
-	     warning("TVlambda.type == 'linear' => 'TVlambda.exp=1'")
+	     warning("[ TVlambda.type == 'linear' => 'TVlambda.exp=1' ]")
 	     TVlambda.exp= 1 
 	   } # IF end
        } # IF end             
@@ -1672,7 +1722,7 @@ hydroPSO <- function(
 	 stop("Invalid argument: 'ngbest' must be in [1, 'npart]'" )
 
        if ( topology!="gbest") {
-	 if (verbose) warning("[Note: 'method=ipso' => 'topology' was changed to 'gbest' !]" )
+	 if (verbose) warning("[ Note: 'method=ipso' => 'topology' was changed to 'gbest' !]" )
 	 topology <- "gbest"
        } # IF end
     } # IF end
@@ -1763,8 +1813,9 @@ hydroPSO <- function(
     ############################################################################  
     if (write2disk) {
 
+      if (verbose) message("                                                                                ")
       if (verbose) message("================================================================================")
-      if (verbose) message("[ Writing the 'PSO_logfile.txt' file ...                                      ]")
+      if (verbose) message("[ Writing the 'PSO_logfile.txt' file ...                                       ]")
       if (verbose) message("================================================================================") 
 
 
@@ -1808,6 +1859,10 @@ hydroPSO <- function(
 	writeLines("", PSOparam.TextFile)  
       } # IF end
       writeLines(c("Boundary wall     :", boundary.wall), PSOparam.TextFile, sep=" ") 
+      writeLines("", PSOparam.TextFile) 
+      writeLines(c("Best update method:", best.update), PSOparam.TextFile, sep=" ") 
+      writeLines("", PSOparam.TextFile) 
+      writeLines(c("Random update     :", random.update), PSOparam.TextFile, sep=" ") 
       writeLines("", PSOparam.TextFile) 
       if (use.TVc1) {
 	writeLines(c("use.TVc1          :", use.TVc1), PSOparam.TextFile, sep=" ") 
@@ -1950,7 +2005,7 @@ hydroPSO <- function(
 	##############################################################################  
 
 	if (verbose) message("================================================================================")
-	if (verbose) message("[ Writing the 'hydroPSO_logfile.txt' file ...                                 ]")
+	if (verbose) message("[ Writing the 'hydroPSO_logfile.txt' file ...                                  ]")
 	if (verbose) message("================================================================================") 
 
 
@@ -2088,10 +2143,11 @@ hydroPSO <- function(
       # 3.a) Evaluate the particles fitness
       if ( fn.name != "hydromod" ) {
 
-	 # Evaluating a Test Function 
-	 Xt.fitness[iter, 1:npart] <- apply(X, fn, MARGIN=1, ...)
-	 GoF                       <- Xt.fitness[iter, 1:npart]
-	 ModelOut[1:npart]         <- GoF  ###
+	 # Evaluating an R Function 
+	 GoF <- apply(X, fn, MARGIN=1, ...)
+	 
+         Xt.fitness[iter, 1:npart] <- GoF
+         ModelOut[1:npart]         <- GoF  ###
 
 	 nfn <- nfn + npart
 
@@ -2100,39 +2156,25 @@ hydroPSO <- function(
 	     if ("verbose" %in% names(model.FUN.args)) {
 	       verbose.FUN <- model.FUN.args[["verbose"]] 
 	     } else verbose.FUN <- verbose
-
-	     for (part in 1:npart) { 
-
-	       if ( iter/REPORT == floor(iter/REPORT) ) {
-		 if (verbose.FUN) message("================================================================================")
-		 if (verbose.FUN) message( "[Iter: ", format( iter, width=4, justify="left" ), "/", maxit, 
-					   ".  Particle: ", format( part, width=4, justify="left" ), "/", npart, 
-					   ":  Starting...]" )
-		 if (verbose.FUN) message("================================================================================")
-	       } # IF end
-
-	       # Evaluating the hydrological model
-	       model.FUN.args         <- modifyList(model.FUN.args, list(param.values=X[part,]) ) 
-	       hydromod.out           <- do.call(model.FUN, as.list(model.FUN.args)) 
-   
-	       Xt.fitness[iter, part] <- as.numeric(hydromod.out[["GoF"]])
-	       GoF                    <- Xt.fitness[iter, part]
-               ModelOut[[part]]       <- hydromod.out[["sim"]]
-
-	       if(is.finite(GoF)) nfn <- nfn + 1                  
-
-	       if ( iter/REPORT == floor(iter/REPORT) ) {
-		 if (verbose.FUN) message("================================================================================")
-		 if (verbose.FUN) message( "[Iter: ", format( iter, width=4, justify="left" ), "/", maxit,  
-					   ".   Particle: ", format( part, width=4, justify="left" ), "/", npart,  
-					   ".   Finished !.   GoF: ", format(hydromod.out[["GoF"]], scientific=TRUE, digits=digits), 
-                                           "]" )
-		 if (verbose.FUN) message("================================================================================")
-		 if (verbose.FUN) message("                                    |                                           ")  
-		 if (verbose.FUN) message("                                    |                                           ")    
-	       } # IF end
-
-	      } # FOR 'part' end
+	     
+	     out <- lapply(1:npart, hydromod.eval,       
+                                      Particles=X, 
+                                      iter=iter, 
+                                      npart=npart, 
+                                      maxit=maxit, 
+                                      REPORT=REPORT, 
+                                      verbose=verbose.FUN, 
+                                      digits=digits, 
+                                      model.FUN=model.FUN, 
+                                      model.FUN.args=model.FUN.args
+                                      )
+                                        
+             for (part in 1:npart){         
+                   GoF                    <- out[[part]][["GoF"]] 
+                   Xt.fitness[iter, part] <- GoF            
+                   ModelOut[[part]]       <- out[[part]][["model.out"]]  
+                   if(is.finite(GoF)) nfn <- nfn + 1   
+             } #FOR part end               
 
 	} # ELSE end
 
@@ -2178,7 +2220,9 @@ hydroPSO <- function(
       ###################   Particles Loop (j) - Start  ########################
       ##########################################################################  
       
-      ifelse(random.update, index.part.upd <- sample(npart), index.part.upd <- 1:npart)
+      ifelse( (best.update == "async") & random.update, 
+              index.part.upd <- sample(npart), 
+              index.part.upd <- 1:npart)
         
       for (j in index.part.upd) {
       
@@ -2194,6 +2238,7 @@ hydroPSO <- function(
 			OFout.Text.file, sep="  ") 
           } else writeLines(as.character(c(iter, j, "NA", "NA" ) ), OFout.Text.file, sep="  ")
 	  writeLines("", OFout.Text.file) 
+	  flush(OFout.Text.file)
           
           # File 'Particles.txt' #
 	  if(is.finite(GoF)) {
@@ -2205,6 +2250,7 @@ hydroPSO <- function(
 					  formatC(X[j, ], format="E", digits=digits, flag=" ") 
 				      ) ), Particles.TextFile, sep="  ") 
 	  writeLines("", Particles.TextFile)
+	  flush(Particles.TextFile)
         
 	  # File 'Velocities.txt' #
 	  if(is.finite(GoF)) {
@@ -2215,7 +2261,8 @@ hydroPSO <- function(
 	  } else writeLines( as.character( c(iter, j, "NA",
 					formatC(V[j, ], format="E", digits=digits, flag=" ")                                            
 					) ), Velocities.TextFile, sep="  ")
-	  writeLines("", Velocities.TextFile)  
+	  writeLines("", Velocities.TextFile) 
+	  flush(Velocities.TextFile)
 	  
         } # IF end
 	    
@@ -2468,7 +2515,8 @@ hydroPSO <- function(
 				   formatC(NormSwarmRadius, format="E", digits=digits, flag=" "),
 				   format( round(GPbest.fit.rate*100, 3), nsmall=3, width=7, justify="right")
 				  ) ), ConvergenceMeasures.TextFile, sep="  ")
-	writeLines("", ConvergenceMeasures.TextFile) 
+	writeLines("", ConvergenceMeasures.TextFile)
+	flush(ConvergenceMeasures.TextFile) 
         
         # File 'BestParamPerIter.txt' #
         GoF <- gbest.fit
@@ -2482,6 +2530,7 @@ hydroPSO <- function(
 	                                   formatC(X.best.part[gbest.pos, ], format="E", digits=digits, flag=" ")                                                                                  
 	                               ) ), BestParamPerIter.TextFile, sep="  ")
 	writeLines("", BestParamPerIter.TextFile)  
+	flush(BestParamPerIter.TextFile)
 	
 	# File 'PbestPerIter.txt' #
         GoF <- pbest.fit
@@ -2489,6 +2538,7 @@ hydroPSO <- function(
 	                            formatC(GoF, format="E", digits=digits, flag=" ") 
 	                           ) ), PbestPerIter.TextFile, sep="  ")
 	writeLines("", PbestPerIter.TextFile)  
+	flush(PbestPerIter.TextFile)
 	
 	# File 'LocalBestPerIter.txt' #
         GoF <- LocalBest.fit
@@ -2496,6 +2546,7 @@ hydroPSO <- function(
 	                            formatC(GoF, format="E", digits=digits, flag=" ") 
 	                           ) ), LocalBestPerIter.TextFile, sep="  ")
 	writeLines("", LocalBestPerIter.TextFile)  
+	flush(LocalBestPerIter.TextFile)
 	
       } # IF end
 
@@ -2531,9 +2582,9 @@ hydroPSO <- function(
     ###################   START WRITING OUTPUT FILES     ###################
     if (write2disk) {
 
-      if (verbose) message("                         ")
-      if (verbose) message("[Writing output files...]")
-      if (verbose) message("                         ")
+      if (verbose) message("                           ")
+      if (verbose) message("[ Writing output files... ]")
+      if (verbose) message("                           ")
 
       niter.real <- iter - 1 
 

@@ -18,15 +18,15 @@ This function reads a file containing different parameter sets and ther correspo
 \usage{
 read_convergence(file="ConvergenceMeasures.txt", MinMax=NULL, beh.thr=NA, 
      verbose=TRUE, plot=TRUE, col=c("black", "darkolivegreen"), lty=c(1,3), 
-     lwd=c(2,2), main="Gbest & Normalized Swarm Radius vs Iteration Number", 
-     xlab="Iteration Number", ylab=c("Gbest", expression(delta[norm])), 
+     lwd=c(2,2), main="Global Optimum & Normalized Swarm Radius vs Iteration Number", 
+     xlab="Iteration Number", ylab=c("Global Optimum", expression(delta[norm])), 
      pch=c(15, 18), cex=1, cex.main=1.4, cex.axis=1.2, cex.lab=1.2, 
      legend.pos="topright", ..., do.png=FALSE, png.width=1500, png.height=900, 
      png.res=90,png.fname="ConvergenceMeasures.png")
            
 plot_convergence(x, verbose=TRUE, col=c("black", "darkolivegreen"), lty=c(1,3),
-     lwd=c(2,2), main="Gbest & Normalized Swarm Radius vs Iteration Number", 
-     xlab="Iteration Number", ylab=c("Gbest", expression(delta[norm])), 
+     lwd=c(2,2), main="Global Optimum & Normalized Swarm Radius vs Iteration Number", 
+     xlab="Iteration Number", ylab=c("Global Optimum", expression(delta[norm])), 
      pch=c(15, 18), cex=1, cex.main=1.4, cex.axis=1.2, cex.lab=1.2, 
      legend.pos="topright", ...,  do.png=FALSE, png.width=1500, png.height=900, 
      png.res=90, png.fname="ConvergenceMeasures.png")
@@ -131,12 +131,12 @@ character, name of the output PNG file. See \code{\link[grDevices]{png}}
 \value{
 A list with the following elements:
 %%  If it is a LIST, use
-\item{Iter}{Description of 'comp1'}
-\item{Gbest}{Description of 'comp2'}
-\item{GbestRate}{Description of 'comp2'}
-\item{IterBestFit}{Description of 'comp2'}
-\item{normSwarmRadius}{Description of 'comp2'}
-\item{[gbest-mean(pbest)]/mean(pbest)}{Description of 'comp2'}
+\item{Iter}{iteration number'}
+\item{Gbest}{global optimum for each iteration}
+\item{GbestRate}{rate of change of the global optimum (current iter/previous iter)}
+\item{IterBestFit}{best performance for the current iteration}
+\item{normSwarmRadius}{normalised swarm radious}
+\item{[gbest-mean(pbest)]/mean(pbest)}{gbest: global optimum, mean(pbest): mean values of the personal best of all the particles}
 %% ...
 }
 %%\references{
@@ -168,9 +168,8 @@ set.seed(100)
 
 # Runing PSO with the 'sphere' test function, writting the results to text files
 hydroPSO(
-        fn= "sphere", lower=rep(-100, nparam), upper=rep(100, nparam),
-        control=list(MinMax="min", npart=2*nparam, maxit=2000,
-                     write2disk=TRUE, plot=TRUE)  
+        fn= sphere, lower=rep(-100, nparam), upper=rep(100, nparam),
+        control=list(MinMax="min", write2disk=TRUE, plot=TRUE)  
         )
   
 # Reading the convergence measures got by running hydroPSO

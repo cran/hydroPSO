@@ -7,15 +7,16 @@
 ################################################################################
 #                             'plot_NparOF'                                    #
 ################################################################################
-# Author : Mauricio Zambrano Bigarini                                          #
+# Author : Mauricio Zambrano Bigiarini                                         #
 # Started: Nov 30th, 2010                                                      #   
 # Updates: 17-Jan-2011 ; 28-Jan-2011 ; 09-Mar-2011                             #
-#          17-Feb-2012 ; 21-Feb-2012 ; 09-Mar-2012 ; 23-Mar-2012               #    
+#          17-Feb-2012 ; 21-Feb-2012 ; 09-Mar-2012 ; 23-Mar-2012 ; 19-Nov-2012 # 
+#          20-Nov-2012 ; 28-Nov-2012                                           #   
 ################################################################################
 # Purpose: For 'n' user-defined parameters, it produces 'sum(1:(npar-1))'      #
-#         'plot_2parOF' plots, with the  values of the objective funtion in    #
+#         'plot_2parOF' plots, with the  values of the objective function in   #
 #         a 2D box,  where the boundaries of each parameter are used as axis.  #
-#         The 'sum(1:(npar-1)) plots corresponds to all the posible            #
+#         The 'sum(1:(npar-1)) plots corresponds to all the possible           #
 #         combinations of 2 parameters among all the 'n' parameters provided   #
 ################################################################################
 # nrows  : numeric, with the amount of rows to be used in the plotting window. 
@@ -25,25 +26,30 @@
 plot_NparOF <- function(params, 
                         gofs,
                         param.names=colnames(params),
-                        MinMax=c("min", "max"),
+                        MinMax=c(NULL, "min", "max"),
+                        beh.thr=NA, 
                         nrows="auto",
                         gof.name="GoF", 
                         main=paste(gof.name, "Surface"),
                         GOFcuts="auto",
                         colorRamp= colorRampPalette(c("darkred", "red", "orange", "yellow", "green", "darkgreen", "cyan")),
                         points.cex=0.7, 
-                        alpha=1,                       
+                        alpha=0.65,                       
                         axis.rot=c(0, 0),
                         verbose=TRUE
                         ) {
 
     
+  ##############################################################################
+  # 1)                            Checkings                                    #
+  ##############################################################################
+  
     # Checking 'params'
     if (missing(params)) 
       stop("Missing argument: 'params' must be provided !!" )
       
     # Number of parameter sets
-    n <- nrow(params)
+    n <- NROW(params)
 
     # Checking 'gofs'
     if (missing(gofs)) {
@@ -54,26 +60,77 @@ plot_NparOF <- function(params,
     # Setting 'MinMax' 
     MinMax <- match.arg(MinMax)
 
+    # Checking 'beh.thr'
+    if ( !is.na(beh.thr) ) {  
+      if ( is.null(MinMax) )
+         stop("Missing argument: 'MinMax' has to be provided before using 'beh.thr' !!")       
+      if ( is.null(gofs) )
+        stop("Missing argument: 'gofs' has to be provided before using 'beh.thr' !!")
+    } # IF end
+
     # Number of parameters that will be analysed
     npar <- length(param.names)
 
-    # creating the varaible that will store the position of the selected parameters within 'params'
+    # creating the variable that will store the position of the selected parameters within 'params'
     par.pos <- numeric(npar)
 
     # Checking 'param.names'
     for ( i in 1:npar) {
       if ( !(param.names[i] %in% colnames(params)) )
-        stop("Invalid argument: The field '", param.names[i], "' doesn't exist in 'params'")
+        stop("Invalid argument: the field '", param.names[i], "' does not exist in 'params'")
       
       par.pos[i] <- which(colnames(params) == param.names[i])
-    } # FOR end  
+    } # FOR end
+  
+    
+  ##############################################################################
+  # 2)                            Computations                                 #
+  ##############################################################################
+  
+    # Filtering out those parameter sets above/below a certain threshold
+    if (!is.na(beh.thr)) {  
+       # Checking 'beh.thr'
+       mx <- max(gofs, na.rm=TRUE)
+       if (beh.thr > mx)
+         stop("Invalid argument: 'beh.thr' must be lower than ", mx ,"!!")
+    
+      # Computing the row index of the behavioural parameter sets
+      ifelse(MinMax=="min", beh.row.index <- which(gofs <= beh.thr), 
+                            beh.row.index <- which(gofs >= beh.thr) )
+    
+      # Removing non-behavioural parameter sets & gofs
+      params <- params[beh.row.index, ]
+      gofs   <- gofs[beh.row.index]
+   
+      # Amount of behavioural parameter sets 
+      nbeh <- nrow(params)
+      if (verbose) message( "[ Number of behavioural parameter sets: ", nbeh, " ]" )
+    } # IF end  
+
+
 
     # If the user didn't provide 'GOFcuts', the 5 quantiles are used
     if (length(GOFcuts) == 1){
-      if (GOFcuts=="auto") 
-        GOFcuts <- unique( quantile( as.numeric(gofs), 
-                           probs=c(0, 0.25, 0.5, 0.75, 0.9, 0.95, 1), na.rm=TRUE) )
+      if (GOFcuts=="auto") {
+        if (MinMax=="min") { 
+           GOFcuts <- unique( quantile( as.numeric(gofs), 
+                              probs=c(0, 0.25, 0.5, 0.85, 0.9, 0.97, 1), na.rm=TRUE) )                                          
+        } else if (MinMax=="max") {
+            GOFcuts <- unique( quantile( as.numeric(gofs), 
+                               probs=c(0, 0.03, 0.1, 0.15, 0.5, 0.75, 1), na.rm=TRUE) ) 
+          } else  # MinMax==NULL
+               GOFcuts <- unique( quantile( as.numeric(gofs), 
+                                  probs=c(0, 0.1, 0.25, 0.5, 0.75, 0.9, 1), na.rm=TRUE) )
+                                  
+        if (verbose) message( "[ Computed GOFcuts: ", 
+                     paste(as.numeric(formatC( GOFcuts, format="E", digits=3, flag=" ")), collapse=" "), " ]" )                          
+          
+      } # IF end
     } # IF end
+    
+  ##############################################################################
+  # 3)                            Plotting                                     #
+  ##############################################################################  
    
     # Number of plots that will be drawn   
     nplots <- sum(1:(npar-1))
@@ -120,9 +177,10 @@ plot_NparOF <- function(params,
     } # FOR end
 
     # Drawing the legend, with a dummy empty plot
-    gof.levels <- cut(gofs, GOFcuts)
-    nlevels    <- length(levels(gof.levels))    
-        
+    #gof.levels <- cut(gofs, GOFcuts)
+    gof.levels <- cut(gofs, unique(as.numeric(formatC( GOFcuts, format="E", digits=4, flag=" "))))
+    nlevels    <- length(levels(gof.levels)) 
+    
     #require(grid)
     a <- lattice::xyplot(1~1, 
                 groups=gof.levels,
@@ -130,7 +188,8 @@ plot_NparOF <- function(params,
                 key = list(x = .5, y = .5, corner = c(0.5, 0.5),
                            title=gof.name,
                            points = list(pch=16, col=colorRamp(nlevels), cex=1.5),
-                           text = list(levels(gof.levels))                     
+                           text = list(levels(gof.levels))                              
+                           #text = list(formatC( as.numeric(levels(gof.levels)), format="E", digits=2, flag=" "))                     
                            ),
                 # removing outter box. From: https://stat.ethz.ch/pipermail/r-help/2007-September/140098.html
                 par.settings = list(axis.line = list(col = "transparent")),

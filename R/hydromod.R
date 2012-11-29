@@ -20,14 +20,15 @@
 # Author : Mauricio Zambrano-Bigiarini                                         #
 # Started: 14-Dec-2010 at JRC Ispra                                            #
 # Updates: 20-Dec-2010                                                         #
-#          19-Jan-2011 ; 22-Jan-2011  ; 02-Feb-2011 ; 11-May-2011              #
-#          13-Jan-2012 ; 16-Jan-2012  ; 23-Jan-2012 ; 02-May-2012              #
+#          19-Jan-2011 ; 22-Jan-2011 ; 02-Feb-2011 ; 11-May-2011               #
+#          13-Jan-2012 ; 16-Jan-2012 ; 23-Jan-2012 ; 02-May-2012 ; 12-Oct-2012 #
+#          15-Oct-2012 ; 22-Nov-2012                                           #
 ################################################################################
 hydromod <- function(
                      param.values,                 # Numeric vector with the paramter values that will be used in the input files of the hydrological model
                      param.files="ParamFiles.txt", # Character, with the name of the file (with full path) that stores the name of the files that have to be modified for each parameter 
                      model.drty=getwd(),           # Character, with the path of the directory that stores the exe file of the hydrological model and ALL the input files required for the simulation
-                     exe.fname="./swat2005.out",
+                     exe.fname,
                      stdout=FALSE,                 # a logical (not NA) indicating whether messages written to ‘stdout’ should be sent or not. See '?system2'
                      stderr="",                    # a logical (not NA) indicating whether messages written to ‘stderr’ should be sent or not. See '?system2'
                      verbose= FALSE,               # logical, indicating if progress messages have to be printed during the simulations. If \code{verbose=TRUE}, the following messages will appear: i)parameter values for each particle; (ii) model execution; iii) extraction of simulated values; and iv) computation of the goodness-of-fit measure.
@@ -78,12 +79,15 @@ hydromod <- function(
   # 0)                             Checkings                                   #
   ##############################################################################
     
-  if (!file.exists(param.files))
-    stop( paste("Invalid argument: the file '", param.files, "' doesn't exist!", sep="") )
-    
   # Verifying 'param.values'
   #if (missing(param.values))
   #  stop( "Missing argument: 'param.values' has to be given !")
+  
+  if (!file.exists(param.files))
+    stop( "Invalid argument: the file '", param.files, "' doesn't exist!" )
+  
+  if ( missing(exe.fname) )
+    stop( "Missing argument: 'exe.fname'" )
     
   if ( missing(out.FUN) ) {
     stop( "Missing argument: 'out.FUN'" )
@@ -98,7 +102,7 @@ hydromod <- function(
   setwd(model.drty)
   
   if (!file.exists(exe.fname))
-    stop( paste("Invalid argument: the file '", exe.fname, "' does not exist!", sep="") )
+    stop( "Invalid argument: the file '", exe.fname, "' does not exist!" )
 
   if ( sessionInfo()[[1]]$os != "linux-gnu") {
     dot.pos   <- which(strsplit(exe.fname, split=character(0))[[1]] == ".")
@@ -137,7 +141,7 @@ hydromod <- function(
 
   out.FUN.argsDefaults <- formals(out.FUN)
   out.FUN.args         <- modifyList(out.FUN.argsDefaults, out.FUN.args) 
-  sim                  <- do.call(out.FUN, as.list(out.FUN.args))                                 
+  sim                  <- do.call(out.FUN, as.list(out.FUN.args))   
 
   ##############################################################################
   # 4)                     Goodness of fit                                     #                                 
@@ -150,40 +154,53 @@ hydromod <- function(
   # In case different dates are given for 'sim', 'obs', 'gof.Ini', gof.Fin', 
   # 'sim' and 'obs' are subset to the time period selected for the GoF function 
   
+  if ( !missing(gof.Ini) | !missing(gof.Fin) ) 
+    ifelse ( grepl("%H", date.fmt, fixed=TRUE) | grepl("%M", date.fmt, fixed=TRUE) |
+             grepl("%S", date.fmt, fixed=TRUE) | grepl("%I", date.fmt, fixed=TRUE) |
+             grepl("%p", date.fmt, fixed=TRUE) | grepl("%X", date.fmt, fixed=TRUE),
+             subdaily <- TRUE, subdaily <- FALSE )
+  
   if (!missing(gof.Ini) ) {
-      if (!is.zoo(obs)) {
-        stop( "Invalid argument: 'obs' must be a zoo or xts object to use 'gof.Ini' !" )
-      } else obs <- window(obs, start=as.Date(gof.Ini, format=date.fmt) )
-      if (!is.zoo(sim)) {
-        stop( "Invalid argument: 'sim' must be a zoo or xts object to use 'gof.Ini' !" )
-      } else sim <- window(sim, start=as.Date(gof.Ini, format=date.fmt) )
+      ifelse(subdaily, gof.Ini <- as.POSIXct(gof.Ini, format=date.fmt),
+                       gof.Ini <- as.Date(gof.Ini, format=date.fmt) )
+                   
+      if (!zoo::is.zoo(obs)) {
+        stop( "Invalid argument: 'obs' must be a zoo or xts object to use 'gof.Ini' !")
+      } else obs <- window(obs, start=gof.Ini) 
+      if (!zoo::is.zoo(sim)) {
+        stop( "Invalid argument: 'sim' must be a zoo or xts object to use 'gof.Ini' !")
+      } else sim <- window(sim, start=gof.Ini)
+                    
   } # IF end 
    
   if (!missing(gof.Fin) ) {
+    ifelse(subdaily, gof.Fin <- as.POSIXct(gof.Fin, format=date.fmt),
+                     gof.Fin <- as.Date(gof.Fin, format=date.fmt) )
+                       
     if (gof.Fin < gof.Ini) {
-      stop( paste("Invalid argument: 'gof.Fin < gof.Ini' (", gof.Fin, " < ", gof.Ini, ")", sep="") )
+      stop( "Invalid argument: 'gof.Fin < gof.Ini' (", gof.Fin, " < ", gof.Ini, ")" )
     } else { 
-           if (!is.zoo(obs)) {
-             stop( "Invalid argument: 'obs' must be a zoo or xts object to use 'gof.Fin' !" )
-           } else obs <- window(obs, end=as.Date(gof.Fin, format=date.fmt) )
-           if (!is.zoo(sim)) {
-             stop( "Invalid argument: 'sim' must be a zoo or xts object to use 'gof.Fin' !" )
-           } else sim <- window(sim, end=as.Date(gof.Fin, format=date.fmt) )
+             if (!zoo::is.zoo(obs)) {
+               stop( "Invalid argument: 'obs' must be a zoo or xts object to use 'gof.Fin' !" )
+             } else obs <- window(obs, end=gof.Fin)
+             if (!zoo::is.zoo(sim)) {
+               stop( "Invalid argument: 'sim' must be a zoo or xts object to use 'gof.Fin' !" )
+             } else sim <- window(sim, end=gof.Fin)
            } # IF end
-  } # IF end   
+  } # IF end  
   
   nobs <- length(obs)
   nsim <- length(sim)
   
   if (nobs != nsim) 
-    stop( paste("Invalid argument: number of observations != number of simulations (", nobs, "!=", nsim, ")'", sep="") )      
+    stop( "Invalid argument: number of observations != number of simulations (", nobs, "!=", nsim, ")'" )      
   
   gof.FUN.argsDefaults <- formals(gof.FUN)
   gof.FUN.args         <- modifyList(gof.FUN.argsDefaults, gof.FUN.args) 
   gof.FUN.args         <- modifyList(gof.FUN.args, list(sim=sim, obs=obs))  
   gof.value            <- do.call(gof.FUN, as.list(gof.FUN.args))   
   
-  if (verbose) message(paste("[", gof.name, "= ", round(gof.value,3), "]", sep=""))
+  if (verbose) message("[", gof.name, "= ", round(gof.value,3), "]")
   
   ##############################################################################
   # 5)                    Creating the output object                           #                                 
@@ -203,20 +220,22 @@ hydromod <- function(
     if (verbose) message("[ 5) Creating a PNG with 'sim' vs 'obs'...]")
     if (verbose) message("===========================================")
     
-    if (missing(main))
-       main <- "Simulations vs Observations"
+    if (missing(main)) main <- "Simulations vs Observations"
       
     if (missing(png.fname))
       png.fname <- paste(file.path(model.drty), "/Obs_vs_Sim.png", sep="")
     
     png(filename=png.fname, width= width, height= height, res=res)
 
-    ggof(sim, obs, main=main, cex.main=1.5, leg.cex=leg.cex, tick.tstep=tick.tstep, lab.tstep=lab.tstep, lab.fmt=lab.fmt)
+    if ( !is.na( match("hydroGOF", installed.packages()[,"Package"] ) ) ) {
+      library(hydroGOF)
+      ggof(sim, obs, main=main, cex.main=1.5, leg.cex=leg.cex, tick.tstep=tick.tstep, lab.tstep=lab.tstep, lab.fmt=lab.fmt)
+    } else plot_out(sim=sim, obs=obs, ptype="corr")
 
     dev.off()
     
     if (verbose) message("===========================================")
-    if (verbose) message("[ See the file 'Obs_vs_Sim.png'           ]")
+    if (verbose) message("[ See the file '", basename(png.fname), "' ")
     if (verbose) message("===========================================")
     
   } # IF end

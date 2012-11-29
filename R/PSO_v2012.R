@@ -10,6 +10,7 @@
 ################################################################################
 # Created: 2008                                                               ##
 # Updates: 23-Nov-2010                                                        ##
+#          20-Sep-2012 ; 29-Oct-2012                                          ##
 ################################################################################
 # Purpose  : To create a matrix randomly generated, with a bounded uniform distribution
 
@@ -22,38 +23,37 @@ Random.Bounded.Matrix <- function(npart, x.MinMax) {
   # dimension of the solution space (number of parameters )
   n <- nrow(x.MinMax)
 	
-  lower <- x.MinMax[,1]
-  upper <- x.MinMax[,2]
+  lower <- matrix( rep(x.MinMax[,1], npart), nrow=npart, byrow=TRUE)
+  upper <- matrix( rep(x.MinMax[,2], npart), nrow=npart, byrow=TRUE)
 	
-  ##x <- lower + (upper-lower)*matrix(runif(n*npart,0,1), nrow=npart, ncol=n)
-  
   # random initialization for all the particles, with a value in [0,1]
-  X <- matrix(runif(n*npart,0,1), nrow=npart, ncol=n)
+  X <- matrix(runif(n*npart, min=0, max=1), nrow=npart, ncol=n)
 
   # Transforming X into the real range defined by the user
-  X <- t( lower +  (upper - lower )*t(X) )
+  #X <- t( lower +  (upper - lower )*t(X) ) # when using vector instead of matrixes
+  X <- lower + (upper-lower)*X  
 	
-  return(X)
-	
-} # 'Random.Bounded.Matrix2' end
-#Random.Bounded.Matrix(10, X.MinMax)
+} # 'Random.Bounded.Matrix' end
+#set.seed(1)
+#Random.Bounded.Matrix(10, x.MinMax)
 
 
 ################################################################################
 ##                        random Latin-Hypercube Sampling                     ##
 ################################################################################
-# Author: Mauricio Zambrano-Bigiarini
-# Created: 17-Dec-2010
-# Updates:
+# Author: Mauricio Zambrano-Bigiarini                                         ##
+# Created: 17-Dec-2010                                                        ##
+# Updates: 20-Sep-2012  ; 29-Oct-2012                                         ##
 ################################################################################
 # Purpose  : Draws a Latin Hypercube Sample from a set of uniform distributions
 #            for use in creating a Latin Hypercube Design
 ################################################################################
 # Output   : An n by ndim Latin Hypercube Sample matrix with values uniformly 
-#            distributed on [0,1] 
+#            distributed on 'ranges'
 ################################################################################
 
-# 'n'      : number of strata used to divide each parameter range
+# 'n'      : number of strata used to divide each parameter range. 
+#            For hydroPSO: 'n=npart'
 # 'ranges' : Matrix of 'N' rows and 2 columns, (N is the number of parameters)
 #            the first column has the minimum values for each dimension, and
 #            the second column has the maximum values for each dimension
@@ -62,24 +62,108 @@ rLHS <- function(n, ranges) {
   # dimension of the solution space (number of parameters )
   ndim <- nrow(ranges)
   
-  lower <- ranges[,1]
-  upper <- ranges[,2]
-	
-  ### LHS initialization for all the particles
-  ##require(lhs)
-  ##X <- lower + (upper-lower)*randomLHS(n, ndim) 
+  # number of particles
+  npart <- n
   
+  lower <- matrix( rep(ranges[,1], npart), nrow=npart, byrow=TRUE)
+  upper <- matrix( rep(ranges[,2], npart), nrow=npart, byrow=TRUE)
+	
   # LHS initialization for all the particles, with a value in [0,1]
   require(lhs)
   X <- randomLHS(n, ndim) 
 
   # Transforming X into the real range defined by the user
-  X <- t( lower +  (upper - lower )*t(X) )
-	
-  return(X)
+  #X <- t( lower +  (upper - lower )*t(X) ) # when using vector instead of matrixes
+  X <- lower + (upper-lower)*X  
 	
 } # 'rLHS' end
 
+
+################################################################################
+#                                    enorm                                     #
+################################################################################
+# Author : Mauricio Zambrano-Bigiarini                                         #
+################################################################################
+# Created: 19-Sep-2012                                                         #
+# Updates:                                                                     #
+################################################################################
+# Purpose  : Computes the Euclidean norm of a vector                           #
+################################################################################
+# Output   : single numeric value with the euclidean norm of 'x'               #
+################################################################################
+enorm <- function(x) sqrt( sum(x*x) )
+
+
+################################################################################
+#                                alea.normal                                   #
+################################################################################
+# Author : Mauricio Zambrano-Bigiarini                                         #
+#          Based on the Matlab function developed by Maurice Clerc (May 2011), #
+#          and available on:                                                   #
+#          http://www.particleswarm.info/SPSO2011_matlab.zip                   #
+################################################################################
+# Created: 19-Sep-2012                                                         #
+# Updates: 29-Oct-2012                                                         #
+################################################################################
+# Purpose  : It uses the polar form of the Box-Muller transformation to obtain #
+#            a pseudo-random number from a Gaussian distribution               #
+################################################################################
+# Output   : single numeric value with a pseudo-random number from a Gaussian  #
+#            distribution with mean='mean' and standard deviation ='sd'        #
+################################################################################
+alea.normal <- function(mean=0, sd=1) {
+
+  w <- 2  
+  while (w >= 1) {
+     x1 <- 2 * runif(1) - 1
+     x2 <- 2 * runif(1) - 1
+     w  <- x1*x1 + x2*x2   
+  } # 'WHILE' end   
+  w  <- sqrt( -2*log(w) / w )
+  y1 <- x1*w  
+  if ( runif(1) < 0.5 ) y1 <- -y1  
+  y1 <- y1 * sd + mean 
+
+} # 'alea.normal' end
+
+
+################################################################################
+#                                alea.sphere                                   #
+################################################################################
+# Author : Mauricio Zambrano-Bigiarini                                         #
+#          Based on the Matlab function developed by Maurice Clerc (May 2011), #
+#          and available on:                                                   #
+#          http://www.particleswarm.info/SPSO2011_matlab.zip                   #
+################################################################################
+# Created: 19-Sep-2012                                                         #
+# Updates:                                                                     #
+################################################################################
+# Purpose  : It generates a random point inside the hypersphere centered       #
+#            around G with radius = r                                          #
+################################################################################
+# Output   : numeric vector with the location of a random point inside the     #
+#            hypersphere around G with radius = r                              #
+################################################################################
+alea.sphere <- function(G, radius) {
+
+  # dimension of 'G' (number of parameters)
+  n <- length(G)
+  
+  # Step 1. Direction
+  l <- 0
+  #x <- replicate( n, alea.normal(mean=0, sd=1) )
+  x <- rnorm(n, mean=0, sd=1)
+  l <- sqrt( sum(x*x) )
+  
+  # Step 2. Random Radius
+  r <- runif(1)
+  
+  x <- r * radius * x / l
+  
+  # Centering the random point at 'G'
+  return( x + G)
+
+} # 'alea.sphere' end
 
 
 ################################################################################
@@ -121,7 +205,7 @@ compute.CF <- function(c1, c2) {
 # 'topology'  : character, with the topology to be used in PSO. Valid values
 #               are in c('gbest', 'lbest')
 # 'method'    : character, with the method to be used as PSO algorithm. Valid values
-#               are in c('pso', 'ipso', 'fips', 'wfips')
+#               are in c('spso2007', 'spso2011', 'ipso', 'fips', 'wfips')
 
 # Result      : vector of 'n' velocities, one for each parameter, corresponding to the current particle
 ################################################################################
@@ -131,6 +215,7 @@ compute.CF <- function(c1, c2) {
 ################################################################################
 # Created: 2008                                                                #
 # Updates: Oct-2011 ; Nov-2011                                                 #
+#          19-Sep-2012 ; 20-Sep-2012 ; 28-Oct-2012 ; 31-Oct-2012               #
 ################################################################################
 compute.veloc <- function(x, v, w, c1, c2, CF, Pbest, part.index, gbest, 
                           topology, method, MinMax, neighs.index, 
@@ -145,64 +230,81 @@ compute.veloc <- function(x, v, w, c1, c2, CF, Pbest, part.index, gbest,
   r1 <- runif(n, min=0, max=1)
   r2 <- runif(n, min=0, max=1)
   
-  if ( method=="pso" ) {
+  if ( method=="spso2011" ) {
+
+       p <- x + r1*c1 * ( pbest - x )
+       l <- x + r2*c2 * ( localBest - x )
+
+      if ( part.index != localBest.pos) {
+        Gr <- (x + p + l) / 3
+      } else  Gr <- (x + p) / 2
+     
+      vn <- CF * (w*v + alea.sphere( G=Gr, radius= enorm(Gr-x) ) - x )
   
-    ifelse(part.index != localBest.pos,  
-           vn <- CF * ( w*v + r1*c1*(pbest-x) + r2*c2*(localBest-x) ),
-           vn <- CF * ( w*v + r1*c1*(pbest-x) ) )
+  } else if ( method == "spso2007" ) {
+  
+           if( part.index != localBest.pos) {
+                  vn <- CF * ( w*v + r1*c1*(pbest-x) + r2*c2*(localBest-x) )
+           } else vn <- CF * ( w*v + r1*c1*(pbest-x) ) 
     
-  } else if ( method=="ipso" ) {
+         } else if ( method=="ipso" ) {
   
-        # number of best particles that have to be considered      
-        nngbest <- length(ngbest.fit)
+               # number of best particles that have to be considered      
+               nngbest <- length(ngbest.fit)
   
-        R2 <-  matrix(rep(r2,nngbest), nrow=nngbest, byrow=TRUE)
+               R2 <-  matrix(rep(r2,nngbest), nrow=nngbest, byrow=TRUE)
         
-        # computing the c2 values for each one of the best particles,
-        # weighted according to their fitness value
-        ifelse(MinMax == "min", c2i <- c2 * ( (1/ngbest.fit)/sum(1/ngbest.fit) ), 
-                                c2i <- c2 * ( ngbest.fit/sum(ngbest.fit) )
-              ) 
-              
-        # transforming 'x' into a matrix, with the same values in each row, in 
-        # order to be able to substract 'x' from 'ngest'
-        X <- matrix(rep(x, nngbest), ncol=n, byrow=TRUE)
+               # computing the c2 values for each one of the best particles,
+               # weighted according to their fitness value
+               if(MinMax == "min") {
+                 c2i <- c2 * ( (1/ngbest.fit)/sum(1/ngbest.fit) )
+               } else c2i <- c2 * ( ngbest.fit/sum(ngbest.fit) )
+               
+               nan.index <- which(is.nan(c2i))
+               if (length(nan.index) > 0) c2i[nan.index] <- c2
+
+               # transforming 'x' into a matrix, with the same values in each row, in 
+               # order to be able to substract 'x' from 'ngest'
+               X <- matrix(rep(x, nngbest), ncol=n, byrow=TRUE)
         
-        # computing the velocity
-        vn <- CF * ( w*v + r1*c1*(pbest-x) + colSums(R2*c2i*(ngbest-X) ) )  
+               # computing the velocity
+               vn <- CF * ( w*v + r1*c1*(pbest-x) + colSums(R2*c2i*(ngbest-X) ) )      
            
-     } else if ( method=="fips" ) {
+           } else if ( method=="fips" ) {
               
-              neighs.index <- neighs.index[!is.na(neighs.index)] # only for topology=='random' 
-              N   <- length(neighs.index)              
-              X   <- matrix(rep(x,N), nrow=N, byrow=TRUE)
-              P   <- Pbest[neighs.index, ]
-              phi <- c1 + c2
-              r   <- runif(N, min=0, max=phi)
+                     neighs.index <- neighs.index[!is.na(neighs.index)] # only for topology=='random' 
+                     N   <- length(neighs.index)              
+                     X   <- matrix(rep(x,N), nrow=N, byrow=TRUE)
+                     P   <- Pbest[neighs.index, ]
+                     phi <- c1 + c2
+                     r   <- runif(N, min=0, max=phi)
                  
-              vn  <-  CF * ( w*v + (1/N)*colSums( r*(P-X) ) )
+                     vn  <-  CF * ( w*v + (1/N)*colSums( r*(P-X) ) )
               
                
-            } else if ( method=="wfips" ) {
+                   } else if ( method=="wfips" ) {
             
-                neighs.index <- neighs.index[!is.na(neighs.index)] # only for topology=='random' 
-                N    <- length(neighs.index)              
-                X    <- matrix(rep(x,N), nrow=N, byrow=TRUE)
-                P    <- Pbest[neighs.index, ]
-                pfit <- lpbest.fit[neighs.index]
-                phi  <- c1 + c2
-                r    <- runif(N, min=0, max=phi)
-                ifelse(MinMax == "min", wght <- (1/lpbest.fit)/sum(1/lpbest.fit), 
-                                        wght <- lpbest.fit/sum(lpbest.fit) 
-                      ) 
+                       neighs.index <- neighs.index[!is.na(neighs.index)] # only for topology=='random' 
+                       N    <- length(neighs.index)              
+                       X    <- matrix(rep(x,N), nrow=N, byrow=TRUE)
+                       P    <- Pbest[neighs.index, ]
+                       pfit <- lpbest.fit[neighs.index]
+                       phi  <- c1 + c2
+                       r    <- runif(N, min=0, max=phi)
+                       if(MinMax == "min") {
+                         wght <- (1/lpbest.fit)/sum(1/lpbest.fit)
+                       } else wght <- lpbest.fit/sum(lpbest.fit) 
                    
-                vn  <-  CF * ( w*v + (1/N) * colSums( wght*r*(P-X) ) )	  
-              } # ELSE end
+                       vn  <-  CF * ( w*v + (1/N) * colSums( wght*r*(P-X) ) )	
+                         
+                     }  else if ( method == "canonical")    
+                                       
+                           vn <- CF * ( w*v + r1*c1*(pbest-x) + r2*c2*(localBest-x) )
+                       
   
   return(vn)
   
 } # 'compute.veloc' end
-
 
 
 ################################################################################
@@ -234,7 +336,7 @@ roll.vector <- function(old.vector, new.value) {
 # Author : Mauricio Zambrano-Bigiarini                                         #
 ################################################################################
 # Created: 2008                                                                #
-# Updates:                                                                     #
+# Updates: 29-Oct-2012                                                         #
 ################################################################################
 # 'iter'    : the current iteration number
 # 'niter'   : maximum number of iteration that can be done within a single run
@@ -246,8 +348,6 @@ roll.vector <- function(old.vector, new.value) {
 compute.value.with.iter <- function(iter, niter, nexp, val.ini, val.fin) {
 
   w <- ( ( (niter - iter) / niter )^nexp ) * ( val.ini - val.fin) + val.fin
-  
-  return(w)
 
 } # 'compute.value.with.iter' end
 
@@ -256,10 +356,11 @@ compute.value.with.iter <- function(iter, niter, nexp, val.ini, val.fin) {
 ##                         compute.w.aiwf Function                            ##
 ##                 Adaptive inertial weight factor (AIWF)                     ##
 ################################################################################
-# Author : Mauricio Zambrano-Bigiarini
+# Author : Mauricio Zambrano-Bigiarini                                        ##
 ################################################################################
-# Started: 2008
-# Updates: 24-Nov-2011
+# Started: 2008                                                               ##
+# Updates: 24-Nov-2011                                                        ##
+#          22-Oct-2012 ; 28-Oct-2012                                          ##
 ################################################################################
 # Reference:
 # According to Liu et al., 2005 ("Improved Particle Swarm Combined with Caos")
@@ -282,14 +383,18 @@ compute.w.aiwf <- function(iter.fit, particle.pos, gbest.fit, w.max, w.min, MinM
   f <- iter.fit[particle.pos]
   
   # 'f.avg': mean fitness value of all the particles in the current iteration
-  f.avg <- mean(iter.fit, na.rm=TRUE)
+  f.avg <- mean(iter.fit, na.rm=TRUE) 
   
   # 'f.min': best fitness value of all the particles in the current iteration
-  ifelse(MinMax == "min", f.min <- min(iter.fit, na.rm=TRUE), f.min <- max(iter.fit, na.rm=TRUE) )
-   
-  ifelse(MinMax == "min", to.apply <- (f <= f.avg), to.apply <- (f >= f.avg) )
+  if(MinMax == "min") {
+    f.min <- min(iter.fit, na.rm=TRUE)
+   } else f.min <- max(iter.fit, na.rm=TRUE)
   
-  if (to.apply) {
+  if(MinMax == "min") {
+    to.apply <- f <= f.avg
+  } else to.apply <- f >= f.avg
+  
+  if ( (to.apply) & (abs(f.avg - f.min)!=0) ) {
     w <- w.min + ( ( (w.max - w.min) * abs(f - f.min) ) / abs(f.avg - f.min) )
   } else w <- w.max
   
@@ -305,16 +410,15 @@ compute.w.aiwf <- function(iter.fit, particle.pos, gbest.fit, w.max, w.min, MinM
 # Author : Mauricio Zambrano-Bigiarini                                         #
 ################################################################################
 # Started: 23-Dec-2010                                                         #
-# Updates:                                                                     #
+# Updates: 28-Oct-2012                                                         #
 ################################################################################
 compute.w.with.GLratio <- function(MinMax, gbest.fit, pbest.fit) {
   
   # If we are Minimizing, the ratio 'gbest/pbest' have to be less than 1,
   # and the closer to 1, the closer the particle to 'gbest'
-  ifelse(MinMax == "min", 
-         w <- 1.1 - ( gbest.fit / mean(pbest.fit) ), 
-         w <- 1.1 - ( mean(pbest.fit) / gbest.fit )
-        )  
+  if(MinMax == "min") { 
+    w <- 1.1 - ( gbest.fit / mean(pbest.fit) )
+  } else w <- 1.1 - ( mean(pbest.fit) / gbest.fit )
   
   return(w)
 
@@ -327,7 +431,7 @@ compute.w.with.GLratio <- function(MinMax, gbest.fit, pbest.fit) {
 # Author : Mauricio Zambrano-Bigiarini                                         #
 ################################################################################
 # Started: 27-Dec-2010                                                         #
-# Updates:                                                                     #
+# Updates: 28-Oct-2012                                                         #
 ################################################################################
 # Based on M. Senthil Arumugam and M.V.C. Rao; 2008. Applied Soft Computing
 # "On the improved Performances of the particle swarm optimization algorithms
@@ -340,10 +444,9 @@ compute.c1.with.GLratio <- function(MinMax, gbest.fit, pbest.fit) {
   
   # If we are Minimizing, the ratio 'gbest/pbest' have to be less than 1,
   # and the closer to 1, the closer the particle to 'gbest'
-  ifelse(MinMax == "min", 
-         c1 <- 1.0 + ( gbest.fit / pbest.fit ), 
-         c1 <- 1.0 + ( pbest.fit / gbest.fit )
-        )  
+  if(MinMax == "min") { 
+     c1 <- 1.0 + ( gbest.fit / pbest.fit )
+  } else c1 <- 1.0 + ( pbest.fit / gbest.fit )
   
   return(c1)
 
@@ -388,7 +491,8 @@ velocity.boundary.treatment <- function(v, vmax ) {
 # Author : Mauricio Zambrano-Bigiarini                                         #
 ################################################################################
 # Started: 2008                                                                #
-# Updates:                                                                     #
+# Updates: Nov-2011                                                            #
+#          23-Sep-2012 ; 29-Oct-2012                                           #
 ################################################################################
 # 'x'             : vector of 'n' parameters, corresponding to one particle
 # 'X.MinMax'      : string indicating if PSO have to find a minimum or a maximum 
@@ -413,9 +517,6 @@ velocity.boundary.treatment <- function(v, vmax ) {
 # no., pp. 112-117, 2005. doi: 10.1109/LAWP.2005.846166
 position.update.and.boundary.treatment <- function(x, v, x.MinMax, boundary.wall) {
  
- # dimension of 'x' (number of parameters)
- n <- nrow(x.MinMax)
- 
  # Vector with the new positions of the current particle
  x.new <- x + v
  
@@ -428,43 +529,47 @@ position.update.and.boundary.treatment <- function(x, v, x.MinMax, boundary.wall
  
  byd.min.pos <- which(x.new < x.min)
  if ( length(byd.min.pos) > 0) { 
-    if ( boundary.wall == "absorbing") {     
+    if ( boundary.wall == "absorbing2011") {     
        x.new[byd.min.pos] <- x.min[byd.min.pos]
-       v.new[byd.min.pos] <- 0*v[byd.min.pos]      
-    } else if ( boundary.wall == "reflecting") {    
+       v.new[byd.min.pos] <- -0.5*v[byd.min.pos]      
+    } else if ( boundary.wall == "absorbing2007") {     
+         x.new[byd.min.pos] <- x.min[byd.min.pos]
+         v.new[byd.min.pos] <- 0*v[byd.min.pos]      
+      } else if ( boundary.wall == "reflecting") {    
            x.new[byd.min.pos] <- 2*x.min[byd.min.pos] - x.new[byd.min.pos] 
-           v.new[byd.min.pos] <- v[byd.min.pos]
+           v.new[byd.min.pos] <- -v[byd.min.pos]
       } else if ( boundary.wall == "invisible") {
              x.new[byd.min.pos] <- x[byd.min.pos]
              v.new[byd.min.pos] <- v[byd.min.pos]
         } else if ( boundary.wall == "damping") {
              L                  <- abs( x.min[byd.min.pos] - x.new[byd.min.pos] )
              x.new[byd.min.pos] <- x.min[byd.min.pos] + runif(1)*L
-             v.new[byd.min.pos] <- v[byd.min.pos]
+             v.new[byd.min.pos] <- -v[byd.min.pos]
         }# ELSE end
  } # IF end
       
  byd.max.pos <- which( x.new > x.max )
  if ( length(byd.max.pos) > 0 ) {	 
-    if ( boundary.wall == "absorbing") { 
+    if ( boundary.wall == "absorbing2011") { 
        x.new[byd.max.pos] <- x.max[byd.max.pos]
-       v.new[byd.max.pos] <- 0*v[byd.max.pos] 
-    } else if ( boundary.wall == "reflecting") {
+       v.new[byd.max.pos] <- -0.5*v[byd.max.pos] 
+    } else if ( boundary.wall == "absorbing2007") { 
+        x.new[byd.max.pos] <- x.max[byd.max.pos]
+        v.new[byd.max.pos] <- 0*v[byd.max.pos] 
+      } else if ( boundary.wall == "reflecting") {
            x.new[byd.max.pos] <- 2*x.max[byd.max.pos] - x.new[byd.max.pos] 
-           v.new[byd.max.pos] <- v[byd.max.pos]
-      } else if ( boundary.wall == "invisible") {
+           v.new[byd.max.pos] <- -v[byd.max.pos]
+        } else if ( boundary.wall == "invisible") {
              x.new[byd.max.pos] <- x[byd.max.pos]
              v.new[byd.max.pos] <- v[byd.max.pos]
-        } else if ( boundary.wall == "damping") {
-             L                  <- abs( x.new[byd.max.pos] - x.max[byd.max.pos])
-             x.new[byd.max.pos] <- x.max[byd.max.pos] - runif(1)*L
-             v.new[byd.max.pos] <- v[byd.max.pos]
-        }# ELSE end
+          } else if ( boundary.wall == "damping") {
+              L                  <- abs( x.new[byd.max.pos] - x.max[byd.max.pos])
+              x.new[byd.max.pos] <- x.max[byd.max.pos] - runif(1)*L
+              v.new[byd.max.pos] <- -v[byd.max.pos]
+            }# ELSE end
  } # IF end
  
- out <- list(x.new=x.new, v.new=v.new)		
-		
- return(out)
+ out <- list(x.new=x.new, v.new=v.new)
 
 } # 'position.update.and.boundary.treatment' end
 
@@ -475,7 +580,7 @@ position.update.and.boundary.treatment <- function(x, v, x.MinMax, boundary.wall
 ## Author : Mauricio Zambrano-Bigiarini                                       ## 
 ################################################################################
 ## Started: 2008                                                              ##
-## Updated: 26-Jan-2012                                                       ##
+## Updated: 26-Jan-2012 ; 28-Oct-2012                                         ##
 ################################################################################
 # Function for updating the values of 'pbest', 'x.best', 'gbest.fit' and 'gbest.pos'
 # for ONLY 1 particle !!
@@ -511,8 +616,9 @@ async.update.pgbests <- function(x,
                                  x.best
                                  ) {
   
-  ifelse(MinMax == "max", l.update <- which(xt.fitness > l.pbest.fit ),
-                          l.update <- which(xt.fitness < l.pbest.fit ) )
+  if(MinMax == "max") {
+    l.update <- which(xt.fitness > l.pbest.fit )
+  } else l.update <- which(xt.fitness < l.pbest.fit )
   
   # Updating 'pbest.fit', 'gbest.fit', 'gbest.pos' and 'x.best.part'
   if ( length(l.update>0) ) {
@@ -557,7 +663,7 @@ async.update.pgbests <- function(x,
 ## Author : Mauricio Zambrano-Bigiarini                                       ## 
 ################################################################################
 ## Started: 2008                                                              ##
-## Updated: 27-Jan-2012                                                       ##
+## Updated: 27-Jan-2012 ; 28-Oct-2012                                         ##
 ################################################################################
 # Function for updating the values of 'pbest', 'x.best', 'gbest.fit' and 'gbest.pos'
 # for the ALL the SWARM !!
@@ -597,8 +703,9 @@ sync.update.pgbests <- function(x,
                                 ) {
   
   # index of all the particles which current fit is better than their last 'pbest'
-  ifelse(MinMax == "max", better.index <- which( xt.fitness > pbest.fit ),
-                          better.index <- which( xt.fitness < pbest.fit ) )
+  if(MinMax == "max") {
+    better.index <- which( xt.fitness > pbest.fit )
+  } else better.index <- which( xt.fitness < pbest.fit )
                           
   # if it exists some particles that have a better fitness value
   if (length(better.index) > 0) {
@@ -644,8 +751,9 @@ sync.update.pgbests <- function(x,
 ################################################################################
 #                          computeCurrentXmaxMin                               #
 ################################################################################
-# Author: Mauricio Zambrano-Bigiarini
-# Started: 22-Dec-2010
+# Author: Mauricio Zambrano-Bigiarini                                          #
+# Started: 22-Dec-2010                                                         #
+# Updates: 28-Oct-2012                                                         #
 ################################################################################
 # Purpose: To compute the minimum parameter range currently embraced for the best
 #          positions found so far in the swarm
@@ -661,10 +769,7 @@ computeCurrentXmaxMin <- function(x.best.part) {
   x.min <- sapply(1:n, function(i,y) { min(y[,i], na.rm=TRUE) }, y = x.best.part)
   x.max <- sapply(1:n, function(i,y) { max(y[,i], na.rm=TRUE) }, y = x.best.part)
 	
-  out <- cbind(x.min, x.max)
-	
-  return(out)
-
+  return (cbind(x.min, x.max))
                               
 }  # 'computeCurrentXmaxMin' END
 
@@ -761,16 +866,15 @@ decrease.search.space <- function(Lmin, x.MinMaxCurrent, x.MinMaxRange, x.best, 
 ################################################################################
 #                            InitializateX                                     #
 ################################################################################
-# Author : Mauricio Zambrano-Bigiarini
-# Started: 23-Dec-2010
-# Updates: 24-Dec-2010
+# Author : Mauricio Zambrano-Bigiarini                                         #
+# Started: 23-Dec-2010                                                         #
+# Updates: 24-Dec-2010                                                         #
+#          28-Oct-2012                                                         #
 ################################################################################
-# Purpose: Function for the initialization of the position and the velocities 
-# of all the particles in the swarm
+# Purpose: Function for the initialization of the position and the velocities  # 
+# of all the particles in the swarm                                            #
 ################################################################################
 # -) npart     : number of particles
-# -) param.IDs : character, with the ID of each parameter/dimension.
-#                It has 'n' elements, where 'n' is the number of dimensions
 # -) X.MinMax  : Matrix with the minimum and maximum values for each dimension 
 #                during the current iteration
 #              -) Rows = 'n' (number of parameters)
@@ -780,10 +884,7 @@ decrease.search.space <- function(Lmin, x.MinMaxCurrent, x.MinMaxRange, x.best, 
 # 'init.type' : character, indicating how to carry out the initialization 
 #               of the position of all the particles in the swarm
 #               valid values are in c('random', 'lhs') 
-InitializateX <- function(npart, param.IDs, x.MinMax, x.ini.type) {
-
-  # Number of parameters
-  n <- length(param.IDs)
+InitializateX <- function(npart, x.MinMax, x.ini.type) {
  
   # 'X' #
   # Matrix of unknown parameters. 
@@ -793,8 +894,6 @@ InitializateX <- function(npart, param.IDs, x.MinMax, x.ini.type) {
   if ( x.ini.type=="random" ) {
       X <- Random.Bounded.Matrix(npart, x.MinMax)
   } else X <- rLHS(npart, x.MinMax)      
-  colnames(X) <- param.IDs 
-  rownames(X) <- paste("Part", 1:npart, sep="")
 
   return(X)
 
@@ -804,16 +903,15 @@ InitializateX <- function(npart, param.IDs, x.MinMax, x.ini.type) {
 ################################################################################
 #                            InitializateV                                     #
 ################################################################################
-# Author : Mauricio Zambrano-Bigiarini
-# Started: 24-Dec-2010
-# Updates: 24-Nov-2011
+# Author : Mauricio Zambrano-Bigiarini                                         #
+# Started: 24-Dec-2010                                                         #
+# Updates: 24-Nov-2011                                                         #
+#          17-Sep-2012 ; 28-Oct-2012                                           #
 ################################################################################
-# Purpose: Function for the initialization of the position and the velocities 
-#          of all the particles in the swarm
+# Purpose: Function for the initialization of the position and the velocities  #
+#          of all the particles in the swarm                                   #
 ################################################################################
 # -) npart     : number of particles
-# -) param.IDs : character, with the ID of each parameter/dimension.
-#                It has 'n' elements, where 'n' is the number of dimensions
 # -) X.MinMax  : Matrix with the minimum and maximum values for each dimension 
 #                during the current iteration
 #              -) Rows = 'n' (number of parameters)
@@ -822,26 +920,42 @@ InitializateX <- function(npart, param.IDs, x.MinMax, x.ini.type) {
 #                 Second column has the maximum possible value for each parameter
 # 'v.ini'      : character, indicating how to carry out the initialization 
 #                of the velocitites of all the particles in the swarm
-#                valid values are in c(0, 'random', 'lhs') 
-InitializateV <- function(npart, param.IDs, x.MinMax, v.ini.type, Xini) {
+#                valid values are in c('zero', 'random2007', 'lhs2007', 'random2011', 'lhs2011') 
+InitializateV <- function(npart, x.MinMax, v.ini.type, Xini) {
 
   # Number of parameters
-  n <- length(param.IDs)
+  n <- nrow(x.MinMax)
  
   # 'V' #
-  # Matrix of velocities for each particles and iteration. 
-  # Rows = 'npart'; 
-  # Columns = 'n' (Dimension of the Solution Space)
+  # Matrix of velocities for each particle and iteration. 
+  # Rows    = 'npart'; 
+  # Columns = 'n' (Dimension of the solution space)
   # Random bounded values are assigned to each dimension
-  if ( v.ini.type=="random" ) {
-      V <- ( Random.Bounded.Matrix(npart, x.MinMax) - Xini)/2
-  } else if ( v.ini.type=="lhs" ) {
-      V <- ( rLHS(npart, x.MinMax) - Xini)/2
-    } else if ( v.ini.type=="zero" ) {
-        V <- matrix(0, ncol=n, nrow=npart, byrow=TRUE)    
-      }
-  colnames(V) <- param.IDs 
-  rownames(V) <- paste("Part", 1:npart, sep="")
+  
+  if (v.ini.type %in% c("random2011", "lhs2011") ) {
+    lower <- matrix( rep(x.MinMax[,1], npart), nrow=npart, byrow=TRUE)
+    upper <- matrix( rep(x.MinMax[,2], npart), nrow=npart, byrow=TRUE)
+    
+    if ( v.ini.type=="random2011" ) {
+      V <- matrix(runif(n*npart, min=as.vector(lower-Xini), max=as.vector(upper-Xini)), nrow=npart)
+    } else if ( v.ini.type=="lhs2011" ) {
+        # LHS initialization for all the particles, with a value in [0,1]
+        require(lhs)
+        V <- randomLHS(npart, n) 
+
+        # Transforming V into the real range defined by SPSO-2011
+        lower <- lower - Xini
+        upper <- upper - Xini
+
+        V <- lower + (upper-lower)*V  
+      } # ELSE end 
+  } else if ( v.ini.type=="random2007" ) {
+        V <- ( Random.Bounded.Matrix(npart, x.MinMax) - Xini ) / 2
+      } else if ( v.ini.type=="lhs2007" ) {
+          V <- ( rLHS(npart, x.MinMax) - Xini ) / 2
+        } else if ( v.ini.type=="zero" ) {
+            V <- matrix(0, ncol=n, nrow=npart, byrow=TRUE)    
+          } # ELSE end
 
   return(V)
 
@@ -852,10 +966,11 @@ InitializateV <- function(npart, param.IDs, x.MinMax, v.ini.type, Xini) {
 ################################################################################
 ##                            UpdateLocalBest                                 ##
 ################################################################################
-# Author : Mauricio Zambrano-Bigiarini
-# Started: 24-Dec-2010
-# Updates: 29-Dec-2010 ; 
-#          14-Nov-2011 ; 27-Jan-2011
+# Author : Mauricio Zambrano-Bigiarini                                        ##
+# Started: 24-Dec-2010                                                        ##
+# Updates: 29-Dec-2010 ;                                                      ##
+#          14-Nov-2011 ; 27-Jan-2011                                          ##
+#          28-Oct-2012 ; 29-Oct-2012                                          ##
 ################################################################################
 # Purpose: Function for computing the best value in the neighbourhood of each 
 #          particle
@@ -880,24 +995,25 @@ UpdateLocalBest <- function(pbest.fit, localBest.pos, localBest.fit, x.neighbour
   
     # index of all the particles that are "neighbours" to the particle 'i'
     neighs.index <- x.neighbours[i,]
-   
+    
     # if one or more of the "neighbours" have a better fitness than the current Local Best
-    ifelse(MinMax == "max", better.index <- which( pbest.fit[neighs.index] > localBest.fit[i] ),
-                            better.index <- which( pbest.fit[neighs.index] < localBest.fit[i] ) )   
-   
-    # if there are some particles that have a better fitness value
-    if (length(better.index) > 0)  
-      ifelse(MinMax == "max", localBest.fit[i] <- max( pbest.fit[neighs.index], na.rm=TRUE ) ,
-                              localBest.fit[i] <- min( pbest.fit[neighs.index], na.rm=TRUE ) ) 
-                              
-      ifelse(MinMax == "max", localBest.pos[i] <- neighs.index[which.max( pbest.fit[neighs.index] )] ,
-                              localBest.pos[i] <- neighs.index[which.min( pbest.fit[neighs.index] )] )  
+    if(MinMax == "max") { 
+      best.neigh.index <- which.max( pbest.fit[neighs.index] )
+      if (pbest.fit[best.neigh.index] > localBest.fit[i] ) {
+        localBest.pos[i] <- neighs.index[best.neigh.index ]
+        localBest.fit[i] <- pbest.fit[localBest.pos[i]]
+      } # IF end
+    } else {
+        best.neigh.index <- which.min( pbest.fit[neighs.index] )
+        if ( pbest.fit[neighs.index][best.neigh.index] < localBest.fit[i] ) {
+          localBest.pos[i] <- neighs.index[best.neigh.index]
+          localBest.fit[i] <- pbest.fit[localBest.pos[i]]
+        } # IF end
+      } # ELSE end
     
   } # FOR end 
   
   out <- list(localBest.pos=localBest.pos, localBest.fit=localBest.fit)
-  
-  return(out)
 
 } # UpdateLocalBest
 
@@ -908,6 +1024,7 @@ UpdateLocalBest <- function(pbest.fit, localBest.pos, localBest.fit, x.neighbour
 # Author : Mauricio Zambrano-Bigiarini
 # Started: 24-Dec-2010
 # Updates: 29-Dec-2010
+#          28-Oct-2012
 ################################################################################
 # Purpose: Function for computing the 'n.neighbours' best values in the swarm, 
 #          and its positions
@@ -920,8 +1037,9 @@ UpdateLocalBest <- function(pbest.fit, localBest.pos, localBest.fit, x.neighbour
  
 UpdateNgbest <- function(pbest.fit, ngbest, MinMax) {
   
-  ifelse(MinMax=="max", sorted.fit <- sort(pbest.fit, decreasing= TRUE), 
-                        sorted.fit <- sort(pbest.fit, decreasing= FALSE) ) 
+  if(MinMax=="max") {
+    sorted.fit <- sort(pbest.fit, decreasing= TRUE)
+  } else sorted.fit <- sort(pbest.fit, decreasing= FALSE)
                             
   # Ordered index of all the particles, 
   # MinMax=="max" => Decreasing order
@@ -945,21 +1063,20 @@ UpdateNgbest <- function(pbest.fit, ngbest, MinMax) {
 ################################################################################
 #                    ComputeSwarmRadiusAndDiameter                             #
 ################################################################################
-# Author : Mauricio Zambrano-Bigiarini
-# Started: 12-Jan-2011
-# Updates: 12-Jan-2011 ; 28-Oct-2011
+# Author : Mauricio Zambrano-Bigiarini                                         #
+# Started: 12-Jan-2011                                                         #
+# Updates: 12-Jan-2011 ; 28-Oct-2011                                           #
+#          06-Nov-2012 ; 07-Nov-2012                                           #
 ################################################################################
-# Purpose: Function for computing the sarm radius, for detecting premature 
-#          convergence, in order to avoid stagnation 
+# Purpose: Function for computing the swarm radius, for detecting premature    #
+#          convergence, in order to avoid stagnation                           #
 ################################################################################
 # X      : matrix, with the current parameter values for all the particles
 # gbest  : numeric, with the parameter values for the best particle in the swarm
-# MinMax : character, indicating if PSO have to find a minimum or a 
-#          maximum for the fitness function.
 #          Valid values are in: c('min', 'max')
-# Lmax   : 
+# Lmax   : vector with the range of the search space in each dimension
  
-ComputeSwarmRadiusAndDiameter <- function(x, gbest, Lmax, MinMax, pbest.fit) {
+ComputeSwarmRadiusAndDiameter <- function(x, gbest, Lmax) {
   
   # number of parameters
   n <- ncol(x)
@@ -971,12 +1088,12 @@ ComputeSwarmRadiusAndDiameter <- function(x, gbest, Lmax, MinMax, pbest.fit) {
   radius <- numeric(npart)
   
   gbest  <- matrix(rep(gbest, npart), nrow=npart, byrow=TRUE)
-  radius <- sqrt( rowSums( (x-gbest)^2 ) )
+  radius <- sqrt( rowSums( (x-gbest)^2, na.rm=TRUE) )
   
-  swarm.radius   <- max(radius, na.rm=TRUE)
+  #swarm.radius   <- max(radius, na.rm=TRUE)
+  swarm.radius   <- median(radius, na.rm=TRUE)
   swarm.diameter <- sqrt(sum(Lmax^2))
-  
-  # creating the output
+
   out        <- list(2)
   out[[1]]   <- swarm.radius
   out[[2]]   <- swarm.diameter
@@ -990,16 +1107,35 @@ ComputeSwarmRadiusAndDiameter <- function(x, gbest, Lmax, MinMax, pbest.fit) {
 ################################################################################
 #                           RegroupingSwarm                                    #
 ################################################################################
-# Author : Mauricio Zambrano-Bigiarini
-# Started: 13-Jan-2011
-# Updates: 18-Nov-2011
+# Author : Mauricio Zambrano-Bigiarini                                         #
+# Started: 13-Jan-2011                                                         #
+# Updates: 18-Nov-2011                                                         #
+#          06-Nov-2012 ; 07-Nov-2012 ; 08-Nov-2012                             #
 ################################################################################
-# Purpose: Function for regrouping the swarm in a search space centred around 
-#          the global best, which is hoped to be both, small enough for efficient 
-#          search and large enough to allow the swarm to escape from the current
-#          local best
+# Purpose: Function for regrouping the swarm in a search space centered around #
+#          the global best, which is hoped to be both, small enough for        #
+#          efficient search and large enough to allow the swarm to escape from #
+#          the current local best.                                             #
+#          There are 4 differences wrt Evers and Ghalia 2009:                  #
+#          -) swarm radius: median is used instead of max                      #
+#          -) computation of the new range of parameter space, which           #
+#             corresponds to the maximum boundary of all the swarm, instead of #
+#             abs(x-Gbest)                                                     #
+#          -) regrouping factor: user-defined instead of 6/(5*ro)              #
+#          -) velocity is re-initialized using Vini.type instead of using the  #
+#             formula proposed by Evers and Ghalia 2009                        #
+################################################################################
+# Reference: Evers, G.I.; Ben Ghalia, M. 2009. Regrouping particle swarm       #
+#            optimization: A new global optimization algorithm with improved   #
+#            performance consistency across benchmarks.                        #
+#            Systems, Man and Cybernetics, 2009. SMC 2009.                     #
+#            IEEE International Conference on, vol., no., pp.3901-3908,        #
+#            DOI: 10.1109/ICSMC.2009.5346625                                   #
 ################################################################################
 RegroupingSwarm <- function(x, 
+                            xini.type, 
+                            v, 
+                            vini.type,
                             gbest, 
                             x.Range,
                             Lmax,
@@ -1015,18 +1151,25 @@ RegroupingSwarm <- function(x,
   # Regrouping factor 
   rf <- RG.r          # user-defined
   #rf <- 6/(5*RG.thr) # Evers & Ghalia
-  #rf <- (1/RG.thr)/2 # MZB
   
   # name of each parameter  
   param.IDs <- row.names(x.Range)
 
   # Removing possible attributes
-  gbest      <- as.numeric( gbest ) 
   x.min.rng  <- as.numeric( x.Range[ ,1] )
   x.max.rng  <- as.numeric( x.Range[ ,2] )
-
+  
+  # Computing current boundaries for the whole swarm
+  xmin    <- apply(x, MARGIN=2, FUN=min) 
+  xmax    <- apply(x, MARGIN=2, FUN=max) 
+  xMinMaxO <- cbind(xmin, xmax)  
+  #message("Boundaries0  :")
+  #print(xMinMaxO)
+  
   # Maximum length of the parameter space in each dimension
-  Lmax <- x.max.rng - x.min.rng 
+  RangeO <- xmax - xmin   
+  #message("RangeO  :")
+  #print(RangeO)
 
   # Transforming the 'gbest' into a matrix, in order to make easier some 
   # further computations
@@ -1035,30 +1178,61 @@ RegroupingSwarm <- function(x,
   # New desired length of the parameter space in each dimension
   # Is equal to the product of the regrouping factor with the maximum distance of 
   # each particle to the global best, for each dimension
-  Lnew <- rf * apply( abs(x-Gbest), MARGIN=2, FUN=max) 
-  #Lnew <- rf * apply( abs(x-Gbest), MARGIN=2, FUN=mean) 
+  #RangeNew <- rf * apply( abs(x-Gbest), MARGIN=2, FUN=max) ## Evers & Ghalia
+  RangeNew <- rf * abs(xmax - xmin)                        ## MZB
   
   # Making sure that the new range for each dimension is no larger than the original one
-  Lnew <- pmin(Lmax, Lnew)
+  RangeNew <- pmin(abs(x.max.rng - x.min.rng), RangeNew)  
+  #message("RangeNew:")
+  #print(RangeNew)
 
   # Re-initializing particle's positions around gbest
   for (part in 1:npart) {
     r3        <- runif(n, 0, 1) 
-    x[part, ] <- gbest + r3*Lnew - 0.5*Lnew
+    x[part, ] <- gbest + r3*RangeNew - 0.5*RangeNew
     # If needed, Clamping the particle positions to the maximum value
     x[part, ] <- pmin(x[part,], x.max.rng)
     # If needed, Clamping the particle positions to the minimum value 
     x[part, ] <- pmax(x[part,], x.min.rng)
   } # FOR end
   
+  # Defining the new boundaries
+  #xmin <- gbest - 0.5*RangeNew           ## Evers & Ghalia
+  #xmax <- gbest + 0.5*RangeNew           ## Evers & Ghalia  
+  xmin    <- apply(x, MARGIN=2, FUN=min)  ## MZB
+  xmax    <- apply(x, MARGIN=2, FUN=max)  ## MZB
+  xMinMax <- cbind(xmin, xmax)            ## MZB  
+  #message("Gbest:")
+  #print(gbest)
+  #message("BoundariesNew:")
+  #print(xMinMax)   
+  
+  # Printing old velocities
+  #vmin    <- apply(v, MARGIN=2, FUN=min) 
+  #vmax    <- apply(v, MARGIN=2, FUN=max) 
+  #vMinMax <- cbind(vmin, vmax)
+  #message("OldBoundariesV:")
+  #print(vMinMax)
+  
+  # Re-initializing velocities
+  v <- InitializateV(npart=npart, x.MinMax=xMinMax, v.ini.type=vini.type, Xini=x)
+  
+  # Printing new velocities
+  #vmin    <- apply(v, MARGIN=2, FUN=min) 
+  #vmax    <- apply(v, MARGIN=2, FUN=max) 
+  #vMinMax <- cbind(vmin, vmax)  
+  #message("NewBoundariesV:")
+  #print(vMinMax)
+  
   # Relative change achieved in each dimension
-  rel.change        <- (Lnew-Lmax)/Lmax
-  names(rel.change) <- param.IDs 
-
-  out      <- list(2)
+  #rel.change        <- (RangeNew-RangeO)/RangeO
+  #names(rel.change) <- param.IDs 
+  
+  out      <- list(3)
   out[[1]] <- x
-  out[[2]] <- Lnew
-  names(out)  <- c("X", "Lnew") 
+  out[[2]] <- v
+  out[[3]] <- RangeNew
+  names(out)  <- c("X", "V", "RangeNew") 
   
   return(out) 
   
@@ -1087,8 +1261,6 @@ Random.Topology.Generation <- function(npart, K,
        l <- length(which(tmp[,i]))
        X.neighbours[i, 1:l] <- which(tmp[,i])
   } # FOR end
-  rownames(X.neighbours) <- paste("Part", 1:npart, sep="")
-  colnames(X.neighbours) <- paste("Neigh", 1:npart, sep="")
   
   return(X.neighbours)
 
@@ -1110,8 +1282,8 @@ hydromod.eval <- function(part, Particles, iter, npart, maxit,
   if ( iter/REPORT == floor(iter/REPORT) ) {
     if (verbose) message("================================================================================")
     if (verbose) message( "[Iter: ", format( iter, width=4, justify="left" ), "/", maxit, 
-					   ".  Particle: ", format( part, width=4, justify="left" ), "/", npart, 
-				   ":  Starting...]" )
+			  ". Particle: ", format( part, width=4, justify="left" ), "/", npart, 
+			  ": Starting...]" )
     if (verbose) message("================================================================================")
   } # IF end
     
@@ -1132,8 +1304,8 @@ hydromod.eval <- function(part, Particles, iter, npart, maxit,
   if ( iter/REPORT == floor(iter/REPORT) ) {
     if (verbose) message("================================================================================")
     if (verbose) message( "[Iter: ", format( iter, width=4, justify="left" ), "/", maxit,  
-                          ".   Particle: ", format( part, width=4, justify="left" ), "/", npart,  
-                          ".   Finished !.   GoF: ", format(hydromod.out[["GoF"]], scientific=TRUE, digits=digits), 
+                          ". Particle: ", format( part, width=4, justify="left" ), "/", npart,  
+                          ". Finished !.   GoF: ", format(hydromod.out[["GoF"]], scientific=TRUE, digits=digits), 
                           "]" )
     if (verbose) message("================================================================================")
     if (verbose) message("                                    |                                           ")  
@@ -1155,7 +1327,9 @@ hydromod.eval <- function(part, Particles, iter, npart, maxit,
 #          May-2011    ; 28-Oct-2011 ; 14-Nov-2011 ; 23-Nov-2011 ;             #
 #          15-Jan-2012 ; 23-Jan-2012 ; 30-Jan-2012 ; 23-Feb-2012 ; 23-Mar-2012 #
 #          14-Jun-2012 ; 15-Jun-2012 ; 03-Jul-2012 ; 06-Jul-2012               #
-#          11-Jul-2012 ; 17-Jul-2012 ; 18-Jul-2012 ; 13-Sep-2012; 14-Sep-2012  #                         
+#          11-Jul-2012 ; 17-Jul-2012 ; 18-Jul-2012 ; 13-Sep-2012 ; 14-Sep-2012 #
+#          17-Sep-2012 ; 23-Sep-2012 ; 15-Oct-2012 ; 25-Oct-2012 ; 28-Oct-2012 #
+#          08-Nov-2012 ; 26-Nov-2012 ; 27-Nov-2012 ; 28-Nov-2012 ; 29-Nov-2012 #
 ################################################################################
 # 'lower'           : minimum possible value for each parameter
 # 'upper'           : maximum possible value for each parameter
@@ -1169,10 +1343,10 @@ hydromod.eval <- function(part, Particles, iter, npart, maxit,
 #                     Must be divisible by 5 (requirement for the chaotic part)
 # 'maxit'           : numeric, with the maximum number of iterations
 # 'c1'              : numeric, representing the cognition constant. 
-#                     Encourages the exploration of the solution space.
+#                     Encourages the exploitation of the solution space.
 #                     How much the particle is influenced by the memory of his best location
 # 'c2'              : numeric, representing the social constant. 
-#                     Encourages the exploitation of the current global best
+#                     Encourages the exploration of the current global best
 #                     How much the particle is influenced by the rest of the swarm	
 # 'use.CF'          : logical, indicating if the Clerc's Constriction Factor have to be used
 #                     to ensure the convergence of the PSO algorithm
@@ -1378,7 +1552,7 @@ hydroPSO <- function(
                     par, 
                     fn="hydromod",  
                     ...,
-                    method=c("pso", "ipso", "fips", "wfips"),
+                    method=c("spso2011", "spso2007", "ipso", "fips", "wfips", "canonical"),
                     lower=-Inf,
                     upper=Inf,                
                     control=list(),
@@ -1400,21 +1574,27 @@ hydroPSO <- function(
 
     if (missing(fn)) {
       stop("Missing argument: 'fn' must be provided")
-    } else {
-	fn.name <- fn
-	fn      <- match.fun(fn)
-      } # ELSE end 
+    } else 
+        if ( is.character(fn) | is.function(fn) )  {
+          if (is.character(fn)) {
+            fn.name <- fn
+	    fn      <- match.fun(fn)
+	  } else if (is.function(fn)) {
+	      fn.name <- as.character(substitute(fn))
+	      fn      <- fn
+	    } # ELSE end
+        } else stop("Missing argument: 'class(fn)' must be in c('function', 'character')")
 
     method <- match.arg(method)       
 
     if (length(lower) != length(upper) )
-      stop( paste( "Invalid argument: 'length(lower) != length(upper) (", length(lower), "!=", length(upper), ")'", sep="" ) )
+      stop( "Invalid argument: 'length(lower) != length(upper) (", length(lower), "!=", length(upper), ")'" )
 
     if (!is.null(n)) {
        if (length(lower) != n)
-	 stop( paste( "Invalid argument: 'length(lower) != nparam (", length(lower), "!=", n, ")'", sep="" ) )             
+	 stop( "Invalid argument: 'length(lower) != nparam (", length(lower), "!=", n, ")'" )             
        if (length(upper) != n)
-	 stop( paste( "Invalid argument: 'length(upper) != nparam (", length(lower), "!=", n, ")'", sep="" ) )
+	 stop( "Invalid argument: 'length(upper) != nparam (", length(lower), "!=", n, ")'" )
     } else n <- length(lower)      
 
     ############################################################################
@@ -1431,21 +1611,26 @@ hydroPSO <- function(
 	    maxfn=Inf,
 	    c1= 0.5+log(2), 
 	    c2= 0.5+log(2), 
+	    use.IW= TRUE, IW.w=1/(2*log(2)), IW.type=c("linear", "non-linear", "runif", "aiwf", "GLratio"), IW.exp= 1, 
 	    use.CF= FALSE, 
-	    lambda= 1, 
+	    lambda= 1,
+
 	    abstol= NULL,    
 	    reltol=sqrt(.Machine$double.eps),             
-	    Xini.type=c("lhs", "random"),  
-	    Vini.type=c("lhs", "random", "zero"), 
+	    Xini.type=c("random", "lhs"),  
+	    Vini.type=c(NA, "random2011", "lhs2011", "random2007", "lhs2007",  "zero"), 
 	    best.update=c("sync", "async"),
 	    random.update=TRUE,
-	    boundary.wall=c("reflecting", "damping", "absorbing", "invisible"),
-	    topology=c("random", "gbest", "lbest", "vonNeumann"), K=3, iter.ini=0, ngbest=4, # only used when 'method=ipso'   
+	    boundary.wall=c(NA, "absorbing2011", "absorbing2007", "reflecting", "damping", "invisible"),
+	    topology=c("random", "gbest", "lbest", "vonNeumann"), K=3, 
+	    iter.ini=0, # only used when 'topology=lbest'   
+	    ngbest=4,   # only used when 'method=ipso'   
+	    
+	    normalise=FALSE,
 
-	    use.IW = TRUE, IW.type=c("linear", "non-linear", "runif", "aiwf", "GLratio"), IW.w=1/(2*log(2)), IW.exp= 1, 
-	    use.TVc1= FALSE, TVc1.type=c("non-linear", "linear", "GLratio"), TVc1.rng= c(1.28, 1.05), TVc1.exp= 1.5, 
-	    use.TVc2= FALSE, TVc2.type=c("non-linear", "linear"), TVc2.rng= c(1.05, 1.28), TVc2.exp= 1.5, 
-	    use.TVlambda=FALSE, TVlambda.type=c("non-linear", "linear"), TVlambda.rng= c(1, 0.25), TVlambda.exp= 1, 
+	    use.TVc1= FALSE, TVc1.rng= c(1.28, 1.05), TVc1.type=c("linear", "non-linear", "GLratio"), TVc1.exp= 1, 
+	    use.TVc2= FALSE, TVc2.rng= c(1.05, 1.28), TVc2.type=c("linear", "non-linear"), TVc2.exp= 1, 
+	    use.TVlambda=FALSE, TVlambda.rng= c(1, 0.25), TVlambda.type=c("linear", "non-linear"), TVlambda.exp= 1, 
 	    use.RG = FALSE, RG.thr= 1.1e-4, RG.r= 0.8, RG.miniter= 5, # RG.r not used in reagrouping
 	    
 	    plot=FALSE,                
@@ -1457,11 +1642,18 @@ hydroPSO <- function(
 	    REPORT=100 
 	       )
 
-    MinMax        <- match.arg(control[["MinMax"]], con[["MinMax"]])
-    Xini.type     <- match.arg(control[["Xini.type"]], con[["Xini.type"]]) 
-    Vini.type     <- match.arg(control[["Vini.type"]], con[["Vini.type"]]) 
+    MinMax        <- match.arg(control[["MinMax"]], con[["MinMax"]])    
+    Xini.type     <- match.arg(control[["Xini.type"]], con[["Xini.type"]])     
+    Vini.type     <- match.arg(control[["Vini.type"]], con[["Vini.type"]])     
+    Vini.type     <- if (is.na(Vini.type)) { 
+                            ifelse(method=="spso2007", "random2007", "random2011")
+                     } else Vini.type
     best.update   <- match.arg(control[["best.update"]], con[["best.update"]]) 
     boundary.wall <- match.arg(control[["boundary.wall"]], con[["boundary.wall"]]) 
+    boundary.wall <- ifelse(is.na(boundary.wall), 
+                            ifelse(method %in% c("spso2007", "canonical"), 
+                                   "absorbing2007", "absorbing2011"),
+                            boundary.wall)
     topology      <- match.arg(control[["topology"]], con[["topology"]]) 
     IW.type       <- match.arg(control[["IW.type"]], con[["IW.type"]])
     TVc1.type     <- match.arg(control[["TVc1.type"]], con[["TVc1.type"]]) 
@@ -1476,24 +1668,26 @@ hydroPSO <- function(
     drty.in           <- con[["drty.in"]]
     drty.out          <- con[["drty.out"]]
     param.ranges      <- con[["param.ranges"]]         
-    digits            <- con[["digits"]]
-
-    npart             <- ifelse(is.na(con[["npart"]]),ceiling(10+2*sqrt(n)),con[["npart"]])
+    digits            <- con[["digits"]]                    
+    npart             <- ifelse(is.na(con[["npart"]]), 
+                                ifelse(method=="spso2007", ceiling(10+2*sqrt(n)), 40),
+                                con[["npart"]] )                                 
     maxit             <- con[["maxit"]] 
     maxfn             <- con[["maxfn"]] 
-    c1                <- con[["c1"]] 
-    c2                <- con[["c2"]] 
-    use.CF            <- con[["use.CF"]] 
+    c1                <- ifelse(method=="canonical", 2.05, con[["c1"]])
+    c2                <- ifelse(method=="canonical", 2.05, con[["c2"]])
+    use.IW            <- ifelse(method=="canonical", FALSE, as.logical(con[["use.IW"]]))
+    IW.w              <- con[["IW.w"]]
+    IW.exp            <- con[["IW.exp"]]
+    use.CF            <- ifelse(method=="canonical", TRUE, as.logical(con[["use.CF"]]))
     lambda            <- con[["lambda"]]  
     abstol            <- con[["abstol"]]     
     reltol            <- con[["reltol"]]             
     random.update     <- as.logical(con[["random.update"]])
     K                 <- con[["K"]]      
     iter.ini          <- con[["iter.ini"]]
-    ngbest            <- con[["ngbest"]]             
-    use.IW            <- as.logical(con[["use.IW"]])
-    IW.w              <- con[["IW.w"]]
-    IW.exp            <- con[["IW.exp"]]
+    ngbest            <- con[["ngbest"]]
+    normalise         <- as.logical(con[["normalise"]])             
     use.TVc1          <- as.logical(con[["use.TVc1"]])
     TVc1.rng          <- con[["TVc1.rng"]]
     TVc1.exp          <- con[["TVc1.exp"]]
@@ -1535,8 +1729,15 @@ hydroPSO <- function(
       stop("'K' must be a positive integer (> 0) !!'")
     } # IF end
     
-    ifelse( ("gof.Ini" %in% names(model.FUN.args)), gof.Ini.exists <- TRUE, gof.Ini.exists <- FALSE )
-    ifelse( ("gof.Fin" %in% names(model.FUN.args)), gof.Fin.exists <- TRUE, gof.Fin.exists <- FALSE )
+    if ( ("gof.Ini" %in% names(model.FUN.args)) ) {
+      gof.Ini.exists <- TRUE
+    } else gof.Ini.exists <- FALSE
+    if ( ("gof.Fin" %in% names(model.FUN.args)) ) {
+      gof.Fin.exists <- TRUE 
+    } else gof.Fin.exists <- FALSE
+    if ( ("date.fmt" %in% names(model.FUN.args)) ) {
+      date.fmt.exists <- TRUE
+    } else date.fmt.exists <- FALSE
 
     ############################################################################  
     # 1)                              Initialisation                           #
@@ -1561,53 +1762,71 @@ hydroPSO <- function(
     if (fn.name=="hydromod") {
 
       if (drty.in == basename(drty.in) )
-	drty.in <- paste( getwd(), "/", drty.in, sep="")
+        drty.in <- paste( getwd(), "/", drty.in, sep="")
 
       if ( !file.exists( file.path(drty.in) ) )
-	 stop( paste("Invalid argument: The directory '", drty.in, "' doesn't exist !", sep="") )
+        stop( "Invalid argument: The directory '", drty.in, "' doesn't exist !" )
 
       if (param.ranges == basename(param.ranges) )
-	 param.ranges <- paste( file.path(drty.in), "/", param.ranges, sep="")
+        param.ranges <- paste( file.path(drty.in), "/", param.ranges, sep="")
 
       if ( !file.exists( param.ranges ) )
-	 stop( paste("Invalid argument: The file '", param.ranges, "' doesn't exist !", sep="") ) 
+        stop( "Invalid argument: The file '", param.ranges, "' doesn't exist !" ) 
 
       if ( is.null(model.FUN) ) {
-	stop( "'model.FUN' has to be defined !" )
+        stop( "'model.FUN' has to be defined !" )
       } else  {
-	  model.FUN.name <- model.FUN
-	  model.FUN      <- match.fun(model.FUN)
-	} # ELSE end
+          model.FUN.name <- model.FUN
+          model.FUN      <- match.fun(model.FUN)
+        } # ELSE end
 
       if ( length(model.FUN.args)==0 ) {
-	warning( "[ 'model.FUN.args' is an empty list. Are you sure your model does not have any argument(s) ? ]" )
+        warning( "['model.FUN.args' is an empty list. Are you sure your model does not have any argument(s) ?]" )
       } else {
-	  model.FUN.argsDefaults <- formals(model.FUN)
-	  model.FUN.args         <- modifyList(model.FUN.argsDefaults, model.FUN.args) 
-	} # ELSe end
+          model.FUN.argsDefaults <- formals(model.FUN)
+          model.FUN.args         <- modifyList(model.FUN.argsDefaults, model.FUN.args) 
+        } # ELSe end
 
     } # IF end    
 
     # checking 'X.Boundaries' 
     if (fn.name=="hydromod") {
 
-	if (verbose) message("================================================================================")
-	if (verbose) message("[                          Reading 'param.ranges' ...                          ]")
-	if (verbose) message("================================================================================") 
+        if (verbose) message("================================================================================")
+        if (verbose) message("[                          Reading 'param.ranges' ...                          ]")
+        if (verbose) message("================================================================================") 
 
-	X.Boundaries <- read.ParameterRanges(ParamRanges.fname=param.ranges) 
+        X.Boundaries <- read.ParameterRanges(ParamRanges.fname=param.ranges) 
+
+        lower <- X.Boundaries[,1]
+        upper <- X.Boundaries[,2]
 
     } else {
-	if ( (lower[1L] == -Inf) || (upper[1L] == Inf) ) {
-	  stop( "Invalid argument: 'lower' and 'upper' boundaries must be finite !!'" )
-	} else X.Boundaries <- cbind(lower, upper)              
+        if ( (lower[1L] == -Inf) || (upper[1L] == Inf) ) {
+          stop( "Invalid argument: 'lower' and 'upper' boundaries must be finite !!'" )
+        } else X.Boundaries <- cbind(lower, upper)              
       } # ELSE end
 
     n <- nrow(X.Boundaries)
-
+    
     if (is.null(rownames(X.Boundaries))) {
       param.IDs <- paste("Param", 1:n, sep="")
-    } else param.IDs <- rownames(X.Boundaries)   
+    } else param.IDs <- rownames(X.Boundaries)
+    
+    if (normalise) {
+      # Backing up the original boundaries
+      lower.ini <- lower
+      upper.ini <- upper
+      X.Boundaries.ini <- X.Boundaries
+      LOWER.ini <- matrix( rep(lower.ini, npart), nrow=npart, byrow=TRUE)
+      UPPER.ini <- matrix( rep(upper.ini, npart), nrow=npart, byrow=TRUE)
+      
+      # normalising
+      lower <- rep(0, n)
+      upper <- rep(1, n)
+      X.Boundaries <- cbind(lower, upper)
+      rownames(X.Boundaries) <- param.IDs
+    } # IF end
 
     if (drty.out == basename(drty.out) )
       drty.out <- paste( getwd(), "/", drty.out, sep="")
@@ -1621,7 +1840,10 @@ hydroPSO <- function(
       } # IF end
     } # IF end  
 
-    if (is.null(abstol)) ifelse(MinMax == "max", abstol <- +Inf, abstol <- -Inf)
+    if (is.null(abstol)) 
+      if (MinMax == "max") {
+        abstol <- +Inf
+      } else abstol <- -Inf
 
     if (Xini.type=="lhs") { 
 	if ( is.na( match("lhs", installed.packages()[,"Package"] ) ) ) {
@@ -1630,10 +1852,10 @@ hydroPSO <- function(
 	}  # IF end  
     } # IF end
 
-    if (Vini.type=="lhs") { 
+    if (Vini.type %in% c("lhs2011", "lhs2007")) { 
 	if ( is.na( match("lhs", installed.packages()[,"Package"] ) ) ) {
-	    warning("[ Package 'lhs' is not installed =>  Vini.type='random' ]")
-	    Vini.type <- "random"
+	    warning("[ Package 'lhs' is not installed =>  Vini.type='random2011' ]")
+	    Vini.type <- "random2011"
 	}  # IF end  
     } # IF end
 
@@ -1737,10 +1959,9 @@ hydroPSO <- function(
 
     Vmax <- lambda*Lmax
 
-    X <- InitializateX(npart=npart, param.IDs=param.IDs, 
-		       x.MinMax=X.Boundaries, x.ini.type=Xini.type)
-    V <- InitializateV(npart=npart, param.IDs=param.IDs, 
-		       x.MinMax=X.Boundaries, v.ini.type=Vini.type, Xini=X)
+    X <- InitializateX(npart=npart, x.MinMax=X.Boundaries, x.ini.type=Xini.type)
+    V <- InitializateV(npart=npart, x.MinMax=X.Boundaries, v.ini.type=Vini.type, 
+                       Xini=X)
     V <- t(apply(V, MARGIN=1, FUN=velocity.boundary.treatment, vmax=Vmax))
 
     if (!missing(par)) {
@@ -1750,7 +1971,7 @@ hydroPSO <- function(
 	} else if ( (class(par)=="matrix") | (class(par)=="data.frame") ) {
 	  tmp <- ncol(par)
 	  if ( tmp != n )
-	    stop( paste("Invalid argument: 'ncol(par) != n' (",tmp, "!=", n, ")", sep="") )
+	    stop( "Invalid argument: 'ncol(par) != n' (",tmp, "!=", n, ")" )
 	  tmp <- nrow(par)
 	  X[1:tmp,] <- par 
 	} # ELSE end
@@ -1760,8 +1981,9 @@ hydroPSO <- function(
     X.best.part <- X
 
     # Worst possible value defined for the objective function
-    ifelse(MinMax == "max", fn.worst.value <- -.Machine$double.xmax/2, 
-                            fn.worst.value <- +.Machine$double.xmax/2)
+    if(MinMax == "max") { 
+      fn.worst.value <- -.Machine$double.xmax/2
+    } else fn.worst.value <- +.Machine$double.xmax/2
                             
     pbest.fit            <- rep(fn.worst.value, npart)     
     pbest.fit.iter       <- fn.worst.value
@@ -1772,14 +1994,16 @@ hydroPSO <- function(
     gbest.fit.prior <- gbest.fit
     gbest.pos       <- 1
 
-    Xt.fitness <- matrix(rep(fn.worst.value, maxit*npart), ncol=npart, nrow=maxit, byrow=TRUE)       
-    colnames(Xt.fitness) <- paste("Part", 1:npart, sep="")
-    rownames(Xt.fitness) <- paste("iter.", 1:maxit, sep="") 
+    Xt.fitness <- matrix(rep(NA, maxit*npart), ncol=npart, nrow=maxit, byrow=TRUE)       
 
     if (topology != "random") {
       nc <- K  
-      ifelse(trunc(K/2) != ceiling(K/2), N   <- (K-1)/2, N  <- K/2)
-      ifelse(trunc(K/2) != ceiling(K/2), NN  <- 1, NN  <- 0)
+      if (trunc(K/2) != ceiling(K/2)) {
+        N   <- (K-1)/2
+      } else N  <- K/2
+      if (trunc(K/2) != ceiling(K/2)) {
+        NN  <- 1
+      } else NN  <- 0
 
       X.neighbours <- matrix(rep(-NA, nc*npart), ncol=nc, nrow=npart, byrow=TRUE)
       for ( i in 1:npart) {
@@ -1791,8 +2015,6 @@ hydroPSO <- function(
 	  X.neighbours[i,j+N+NN] <- neigh.index
 	} # FOR end
       } # FOR end                      
-      rownames(X.neighbours) <- paste("Part", 1:npart, sep="")
-      colnames(X.neighbours) <- paste("Neigh", 1:nc, sep="")
     } # IF end 
 
     LocalBest.fit <- rep(fn.worst.value, npart)
@@ -1823,13 +2045,13 @@ hydroPSO <- function(
       PSOparam.TextFile  <- file(PSOparam.fname , "w+")
       
       writeLines("================================================================================", PSOparam.TextFile)  
-      writeLines(c("Platform          :", sessionInfo()[[1]]$platform), PSOparam.TextFile, sep="  ")
-      writeLines("", PSOparam.TextFile) 
-      writeLines(c("R version         :", sessionInfo()[[1]]$version.string), PSOparam.TextFile, sep="  ")
-      writeLines("", PSOparam.TextFile) 
       writeLines(c("hydroPSO version  :", sessionInfo()$otherPkgs$hydroPSO$Version), PSOparam.TextFile, sep="  ")
       writeLines("", PSOparam.TextFile) 
       writeLines(c("hydroPSO Built    :", sessionInfo()$otherPkgs$hydroPSO$Built), PSOparam.TextFile, sep="  ")
+      writeLines("", PSOparam.TextFile) 
+      writeLines(c("R version         :", sessionInfo()[[1]]$version.string), PSOparam.TextFile, sep="  ")
+      writeLines("", PSOparam.TextFile) 
+      writeLines(c("Platform          :", sessionInfo()[[1]]$platform), PSOparam.TextFile, sep="  ")
       writeLines("", PSOparam.TextFile) 
       writeLines("================================================================================", PSOparam.TextFile)  
       Time.Ini <- Sys.time()
@@ -1837,6 +2059,8 @@ hydroPSO <- function(
       writeLines("", PSOparam.TextFile) 
       writeLines("================================================================================", PSOparam.TextFile)  
       writeLines(c("Objective Function:", fn.name), PSOparam.TextFile, sep=" ") 
+      writeLines("", PSOparam.TextFile) 
+      writeLines(c("MinMax            :", MinMax), PSOparam.TextFile, sep=" ") 
       writeLines("", PSOparam.TextFile) 
       writeLines(c("Dimension         :", n), PSOparam.TextFile, sep=" ") 
       writeLines("", PSOparam.TextFile) 
@@ -1851,7 +2075,7 @@ hydroPSO <- function(
 	writeLines("", PSOparam.TextFile)  
       } # IF end
       writeLines(c("Topology          :", topology), PSOparam.TextFile, sep=" ") 
-      writeLines("", PSOparam.TextFile) 
+      writeLines("", PSOparam.TextFile)  
       if ( (topology == "lbest") | (topology == "random") ) {
 	writeLines(c("K                 :", K), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile)  
@@ -1860,6 +2084,12 @@ hydroPSO <- function(
       } # IF end
       writeLines(c("Boundary wall     :", boundary.wall), PSOparam.TextFile, sep=" ") 
       writeLines("", PSOparam.TextFile) 
+      writeLines(c("normalise         :", normalise), PSOparam.TextFile, sep=" ") 
+      writeLines("", PSOparam.TextFile) 
+      writeLines(c("Xini.type         :", Xini.type), PSOparam.TextFile, sep=" ") 
+      writeLines("", PSOparam.TextFile) 
+      writeLines(c("Vini.type         :", Vini.type), PSOparam.TextFile, sep=" ")
+      writeLines("", PSOparam.TextFile)  
       writeLines(c("Best update method:", best.update), PSOparam.TextFile, sep=" ") 
       writeLines("", PSOparam.TextFile) 
       writeLines(c("Random update     :", random.update), PSOparam.TextFile, sep=" ") 
@@ -1867,9 +2097,9 @@ hydroPSO <- function(
       if (use.TVc1) {
 	writeLines(c("use.TVc1          :", use.TVc1), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
-	writeLines(c("TVc1.type         :", TVc1.type), PSOparam.TextFile, sep=" ") 
-	writeLines("", PSOparam.TextFile) 
 	writeLines(c("TVc1.rng          :", TVc1.rng), PSOparam.TextFile, sep=" ") 
+	writeLines("", PSOparam.TextFile) 
+	writeLines(c("TVc1.type         :", TVc1.type), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
 	writeLines(c("TVc1.exp          :", TVc1.exp), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
@@ -1880,9 +2110,9 @@ hydroPSO <- function(
       if (use.TVc2) {
 	writeLines(c("use.TVc2          :", use.TVc2), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
-	writeLines(c("TVc2.type         :", TVc2.type), PSOparam.TextFile, sep=" ") 
-	writeLines("", PSOparam.TextFile) 
 	writeLines(c("TVc2.rng          :", TVc2.rng), PSOparam.TextFile, sep=" ") 
+	writeLines("", PSOparam.TextFile) 
+	writeLines(c("TVc2.type         :", TVc2.type), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
 	writeLines(c("TVc2.exp          :", TVc2.exp), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
@@ -1890,12 +2120,24 @@ hydroPSO <- function(
         writeLines(c("c2                :", c2), PSOparam.TextFile, sep=" ") 
         writeLines("", PSOparam.TextFile) 
       } # ELSE end 
+      writeLines(c("use.IW            :", use.IW), PSOparam.TextFile, sep=" ") 
+      writeLines("", PSOparam.TextFile) 
+      if (use.IW) {
+	writeLines(c("IW.w              :", IW.w), PSOparam.TextFile, sep=" ") 
+	writeLines("", PSOparam.TextFile) 
+	if ( length(IW.w) > 1 ) {
+  	  writeLines(c("IW.type           :", IW.type), PSOparam.TextFile, sep=" ") 
+	  writeLines("", PSOparam.TextFile) 
+	  writeLines(c("IW.exp            :", IW.exp), PSOparam.TextFile, sep=" ") 
+	  writeLines("", PSOparam.TextFile) 
+	} # IF end
+      }  # IF end
       if (use.TVlambda) {
 	writeLines(c("use.TVlambda      :", use.TVlambda), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
-	writeLines(c("TVlambda.type     :", TVlambda.type), PSOparam.TextFile, sep=" ") 
-	writeLines("", PSOparam.TextFile) 
 	writeLines(c("TVlambda.rng      :", TVlambda.rng), PSOparam.TextFile, sep=" ") 
+	writeLines("", PSOparam.TextFile) 
+	writeLines(c("TVlambda.type     :", TVlambda.type), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
 	writeLines(c("TVlambda.exp      :", TVlambda.exp), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
@@ -1903,15 +2145,15 @@ hydroPSO <- function(
         writeLines(c("lambda            :", lambda), PSOparam.TextFile, sep=" ") 
         writeLines("", PSOparam.TextFile)   
       }  # ELSE end
-      if (use.IW) {
-	writeLines(c("use.IW            :", use.IW), PSOparam.TextFile, sep=" ") 
+      writeLines(c("use.RG            :", use.RG), PSOparam.TextFile, sep=" ") 
+      writeLines("", PSOparam.TextFile) 
+      if (use.RG) {
+        writeLines(c("RG.thr            :", RG.thr), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
-	writeLines(c("IW.type           :", IW.type), PSOparam.TextFile, sep=" ") 
+	writeLines(c("RG.r              :", RG.r), PSOparam.TextFile, sep=" ") 
 	writeLines("", PSOparam.TextFile) 
-	writeLines(c("IW.w              :", IW.w), PSOparam.TextFile, sep=" ") 
-	writeLines("", PSOparam.TextFile) 
-	writeLines(c("IW.exp            :", IW.exp), PSOparam.TextFile, sep=" ") 
-	writeLines("", PSOparam.TextFile) 
+	writeLines(c("RG.miniter        :", RG.miniter), PSOparam.TextFile, sep=" ") 
+	writeLines("", PSOparam.TextFile) 	
       }  # IF end
       writeLines(c("maxfn             :", maxfn), PSOparam.TextFile, sep=" ")  
       writeLines("", PSOparam.TextFile) 
@@ -2060,6 +2302,7 @@ hydroPSO <- function(
 
     iter     <- 1
     nfn      <- 1
+    nfn.eff  <- 1
     iter.rg  <- 1
     nregroup <- 0
 
@@ -2097,7 +2340,7 @@ hydroPSO <- function(
     if (verbose) message("================================================================================")
     if (verbose) message("                                                                                ")        
 
-    while ( (iter <= maxit)  && (!abstol.conv) && (!reltol.conv) && (nfn <= maxfn) ) { 
+    while ( (iter <= maxit)  && (!abstol.conv) && (!reltol.conv) && (nfn.eff <= maxfn) ) { 
 
       if ( (topology=="random") & (!improvement) ) 
 	X.neighbours <- Random.Topology.Generation(npart, K, drty.out, iter)
@@ -2140,16 +2383,26 @@ hydroPSO <- function(
 	} # IF end  
 
       ##########################################################################  
+      
+      if (normalise) {
+        Xn <- X * (UPPER.ini - LOWER.ini) + LOWER.ini
+        Vn <- V * (UPPER.ini - LOWER.ini) + LOWER.ini
+      } else {
+          Xn <- X
+          Vn <- V
+        } # ELSE end
+      
       # 3.a) Evaluate the particles fitness
       if ( fn.name != "hydromod" ) {
-
+         
 	 # Evaluating an R Function 
-	 GoF <- apply(X, fn, MARGIN=1, ...)
+         GoF <- apply(Xn, fn, MARGIN=1, ...)
 	 
          Xt.fitness[iter, 1:npart] <- GoF
          ModelOut[1:npart]         <- GoF  ###
 
-	 nfn <- nfn + npart
+	 nfn     <- nfn + npart
+	 nfn.eff <- nfn.eff + npart
 
       } else { # fn.name = "hydromod"       
 
@@ -2158,7 +2411,7 @@ hydroPSO <- function(
 	     } else verbose.FUN <- verbose
 	     
 	     out <- lapply(1:npart, hydromod.eval,       
-                                      Particles=X, 
+                                      Particles=Xn, 
                                       iter=iter, 
                                       npart=npart, 
                                       maxit=maxit, 
@@ -2173,11 +2426,11 @@ hydroPSO <- function(
                    GoF                    <- out[[part]][["GoF"]] 
                    Xt.fitness[iter, part] <- GoF            
                    ModelOut[[part]]       <- out[[part]][["model.out"]]  
-                   if(is.finite(GoF)) nfn <- nfn + 1   
+                   nfn <- nfn + 1 
+                   if(is.finite(GoF)) nfn.eff <- nfn.eff + 1                     
              } #FOR part end               
 
 	} # ELSE end
-
 
       if ( best.update == "sync" ) {
 	    tmp <- sync.update.pgbests(x=X, 
@@ -2212,7 +2465,7 @@ hydroPSO <- function(
 
       } # IF end 
       
-      # 'X.bak' is only needed to correctly compute the Normalised Swarm Radious
+      # 'X.bak' is only needed to correctly compute the Normalised Swarm Radius
       # for the current iteration
       X.bak <- X           
 
@@ -2220,9 +2473,9 @@ hydroPSO <- function(
       ###################   Particles Loop (j) - Start  ########################
       ##########################################################################  
       
-      ifelse( (best.update == "async") & random.update, 
-              index.part.upd <- sample(npart), 
-              index.part.upd <- 1:npart)
+      if ( (best.update == "async") & random.update) { 
+	index.part.upd <- sample(npart)
+      } else index.part.upd <- 1:npart
         
       for (j in index.part.upd) {
       
@@ -2244,10 +2497,10 @@ hydroPSO <- function(
 	  if(is.finite(GoF)) {
 	    writeLines(as.character( c(iter, j, 
 				     formatC(GoF, format="E", digits=digits, flag=" "), #GoF
-				     formatC(X[j, ], format="E", digits=digits, flag=" ") 
+				     formatC(Xn[j, ], format="E", digits=digits, flag=" ") 
 				      ) ), Particles.TextFile, sep="  ") 
 	  } else writeLines(as.character( c(iter, j, "NA",
-					  formatC(X[j, ], format="E", digits=digits, flag=" ") 
+					  formatC(Xn[j, ], format="E", digits=digits, flag=" ") 
 				      ) ), Particles.TextFile, sep="  ") 
 	  writeLines("", Particles.TextFile)
 	  flush(Particles.TextFile)
@@ -2256,10 +2509,10 @@ hydroPSO <- function(
 	  if(is.finite(GoF)) {
 	    writeLines( as.character( c(iter, j, 
 					formatC(GoF, format="E", digits=digits, flag=" "), # GoF
-					formatC(V[j, ], format="E", digits=digits, flag=" ")                                            
+					formatC(Vn[j, ], format="E", digits=digits, flag=" ")                                            
 					) ), Velocities.TextFile, sep="  ") 
 	  } else writeLines( as.character( c(iter, j, "NA",
-					formatC(V[j, ], format="E", digits=digits, flag=" ")                                            
+					formatC(Vn[j, ], format="E", digits=digits, flag=" ")                                            
 					) ), Velocities.TextFile, sep="  ")
 	  writeLines("", Velocities.TextFile) 
 	  flush(Velocities.TextFile)
@@ -2326,9 +2579,10 @@ hydroPSO <- function(
 
 	######################################################################## 
 	# 3.b) Updating the velocity of all the particles
-	ifelse( (topology=="lbest") & (iter <= iter.ini), ltopology <- "gbest", 
-							  ltopology <- topology)
-
+	if ( (topology=="lbest") & (iter <= iter.ini) ) {
+          ltopology <- "gbest"
+        } else ltopology <- topology
+        
 	V[j,] <- compute.veloc( 
 				x= X[j, ], 
 				v= V[j, ], 
@@ -2343,13 +2597,13 @@ hydroPSO <- function(
 				method=method,                                    
 				MinMax=MinMax,                             # topology="ipso" | method="wfips"
 				neighs.index=X.neighbours[j, ],            # method in c("fips", "wfips")
-				localBest=X.best.part[LocalBest.pos[j], ], # topology="lbest"
+				localBest=X.best.part[LocalBest.pos[j], ], # topology=c("random", "lbest")
 				localBest.pos=LocalBest.pos[j],            # topology=c("random", "lbest")
 				ngbest.fit=ngbest.fit,                     # topology="ipso"
 				ngbest=X.best.part[ngbest.pos, ],          # topology="ipso"
 				lpbest.fit= pbest.fit[X.neighbours[j, ]]   # method="wfips"
 				)  
-
+        
 	V[j,] <- velocity.boundary.treatment(v= V[j,], vmax=Vmax)
 
         ########################################################################  
@@ -2364,7 +2618,9 @@ hydroPSO <- function(
       ########################################################################## 
        
       if ( plot ) {
-	ifelse(MinMax == "max", lgof <- max(GoF, na.rm=TRUE), lgof <- min(GoF, na.rm=TRUE)) 
+	if (MinMax == "max") {
+          lgof <- max(GoF, na.rm=TRUE)
+        } else lgof <- min(GoF, na.rm=TRUE)
 	colorRamp= colorRampPalette(c("darkred", "red", "orange", "yellow", "green", "darkgreen", "cyan"))
 	XX.Boundaries.current <- computeCurrentXmaxMin(X) 
 	xlim <- range(XX.Boundaries.current)
@@ -2383,31 +2639,32 @@ hydroPSO <- function(
       
       gbest.fit.iter[iter] <- gbest.fit
       
-      suppressWarnings(ifelse(MinMax=="max", pbest.fit.iter <- max( Xt.fitness[iter, ], na.rm=TRUE ),  
-			                     pbest.fit.iter <- min( Xt.fitness[iter, ], na.rm=TRUE) ) )  
+      suppressWarnings(if (MinMax=="max") {
+                           pbest.fit.iter <- max( Xt.fitness[iter, ], na.rm=TRUE )
+                       } else pbest.fit.iter <- min( Xt.fitness[iter, ], na.rm=TRUE)
+                      )  
 
       GPbest.fit.rate <- mean(pbest.fit, na.rm=TRUE)
-      ifelse( (is.finite(GPbest.fit.rate) ) & ( GPbest.fit.rate !=0 ), 
-	      GPbest.fit.rate <- abs( ( gbest.fit - GPbest.fit.rate ) / GPbest.fit.rate ), 
-	      GPbest.fit.rate <- +Inf)
+      if ( (is.finite(GPbest.fit.rate) ) & ( GPbest.fit.rate !=0 ) ) { 
+	GPbest.fit.rate <- abs( ( gbest.fit - GPbest.fit.rate ) / GPbest.fit.rate )
+      } else GPbest.fit.rate <- +Inf
 
-      ifelse( (gbest.fit.prior != 0) & (is.finite(gbest.fit.prior) ) , 
-	      gbest.fit.rate <- abs( ( gbest.fit - gbest.fit.prior ) / gbest.fit.prior ), 
-	      gbest.fit.rate <- +Inf)
+      if ( (gbest.fit.prior != 0) & (is.finite(gbest.fit.prior) ) ) { 
+	gbest.fit.rate <- abs( ( gbest.fit - gbest.fit.prior ) / gbest.fit.prior )
+      } else gbest.fit.rate <- +Inf
 
-      out <- ComputeSwarmRadiusAndDiameter(x=X.bak, gbest= X.best.part[gbest.pos, ], Lmax=Lmax, 
-					   MinMax=MinMax, pbest.fit=pbest.fit) 
+      out <- ComputeSwarmRadiusAndDiameter(x=X.bak, gbest= X.best.part[gbest.pos, ], Lmax=Lmax) 
       swarm.radius    <- out[["swarm.radius"]] 
       swarm.diameter  <- out[["swarm.diameter"]]
       NormSwarmRadius <- swarm.radius/swarm.diameter
 
       if ( (verbose) & ( iter/REPORT == floor(iter/REPORT) ) ) 
-	   message( "iter:", format(iter, width=6, justify="right"), 
-		    "   Gbest:", formatC( gbest.fit, format="E", digits=digits, flag=" "), 
-		    "   Gbest_rate:", format( round(gbest.fit.rate*100, 2), width=6, nsmall=2, justify="left"), "%",
-		    "   Iter_best_fit:", formatC(pbest.fit.iter, format="E", digits=digits, flag=" "),               
-		    "   nSwarm_Radius:", formatC(NormSwarmRadius, format="E", digits=digits, flag=" "),
-		    "   |g-mean(p)|/mean(p):", format( round(GPbest.fit.rate*100, 2), width=6, nsmall=2, justify="left"), "%" )
+	   message( "iter:", format(iter, width=nchar(maxit), justify="right"), 
+		    "  Gbest:", formatC( gbest.fit, format="E", digits=3, flag=" "), 
+		    "  Gbest_rate:", format( round(gbest.fit.rate*100, 2), width=6, nsmall=2, justify="left"), "%",
+		    "  Iter_best_fit:", formatC(pbest.fit.iter, format="E", digits=3, flag=" "),               
+		    "  nSwarm_Radius:", formatC(NormSwarmRadius, format="E", digits=2, flag=" "),
+		    "  |g-mean(p)|/mean(p):", format( round(GPbest.fit.rate*100, 2), width=6, nsmall=2, justify="left"), "%" )
 
       ##########################################################################  
       # Random Generation around gbest, if requested                           #
@@ -2417,50 +2674,63 @@ hydroPSO <- function(
 
       if (do.RandomGeneration)  {        
 
-	  if (topology == "gbest") {
-	    gbest.fit.bak <- gbest.fit
-	    gbest.pos.bak <- gbest.pos
+	  if (topology!="ipso") {
 	    x.bak         <- X[gbest.pos,]
-	    v.bak         <- V[gbest.pos,]                
+	    v.bak         <- V[gbest.pos,]
+	    gbest.fit.bak <- gbest.fit
+	    gbest.pos.bak <- gbest.pos	                    
 	  } # IF end
 
 	  if (topology == "ipso") {
 	   x.bak         <- X[ngbest.pos,]
 	   v.bak         <- V[ngbest.pos,]
-	   gbest.fit.bak <- ngbest.fit
+	   gbest.fit.bak <- gbest.fit
+           gbest.pos.bak <- gbest.pos	
+	   ngbest.fit.bak <- ngbest.fit
+	   ngbest.pos.bak <- ngbest.pos	  
 	  } # IF end
 
-	  if (verbose) message("[Re-grouping particles in the swarm (iter: ", iter, ") ...]")
+	  if (verbose) message("[ Re-grouping particles in the swarm (iter: ", iter, ") ... ]")
 
 	  tmp <- RegroupingSwarm(x=X, 
-				 gbest= X.best.part[gbest.pos, ], 
+				 xini.type=Xini.type, 
+                                 v=V, 
+                                 vini.type=Vini.type,                            
+	                         gbest= X.best.part[gbest.pos, ], 
 				 x.Range=X.Boundaries,
 				 #x.Range=X.Boundaries.current,
 				 Lmax=Lmax,
 				 RG.thr=RG.thr,
 				 RG.r=RG.r) 
 
-	  X    <- tmp[["X"]]
+	  X <- tmp[["X"]]
+	  V <- tmp[["V"]]
 	  
-	  if (topology == "gbest") {
-	    X[gbest.pos,] <- x.bak
-	    #V[gbest.pos,] <- v.bak
-	    gbest.fit     <- gbest.fit.bak
-	    gbest.pos     <- gbest.pos.bak
-	  } # IF end
+	  Lmax <- tmp[["RangeNew"]]
 
 	  if (topology == "ipso") {
 	    X[ngbest.pos,] <- x.bak
 	    gbest.fit      <- gbest.fit.bak
-	    gbest.pos     <- gbest.pos.bak
+	    gbest.pos      <- gbest.pos.bak
 	  } # IF end
 
-	  V <- InitializateV(npart=npart, param.IDs=param.IDs, 
-			     x.MinMax=X.Boundaries, v.ini.type=Vini.type, 
-			     Xini=X)
+          pbest.fit            <- rep(fn.worst.value, npart)     
+          pbest.fit.iter       <- fn.worst.value
+          pbest.fit.iter.prior <- fn.worst.value*2
+			    
+          gbest.fit       <- fn.worst.value
+          gbest.fit.iter  <- rep(gbest.fit, maxit)
+          gbest.fit.prior <- gbest.fit
+          gbest.pos       <- 1
+                  
+          gbest.fit     <- gbest.fit.bak
+          gbest.pos     <- gbest.pos.bak
+          X[gbest.pos,] <- x.bak
 
 	  GPbest.fit.rate <- +Inf              
-	  ifelse(MinMax=="max", gbest.fit.prior <- +Inf, gbest.fit.prior <- 0) 
+	  if (MinMax=="max") {
+            gbest.fit.prior <- +Inf
+          } else gbest.fit.prior <- 0
 
 	  niter.tv <- maxit - iter
 	  iter.tv  <- 1   
@@ -2473,20 +2743,25 @@ hydroPSO <- function(
       # Updates required before the next iteration
       ##########################################################################  
 
-      ifelse(MinMax=="max", abstol.conv <- gbest.fit >= abstol, 
-			    abstol.conv <- gbest.fit <= abstol )
+      if (MinMax=="max") {
+        abstol.conv <- gbest.fit >= abstol
+      } else abstol.conv <- gbest.fit <= abstol
                      
       if (reltol==0) {
         reltol.conv <- FALSE
       } else {
         tmp <- abs(pbest.fit.iter.prior - pbest.fit.iter)
-        ifelse(tmp==0, reltol.conv <- FALSE, reltol.conv <- tmp <= abs(reltol) )
+        if (tmp==0) {
+          reltol.conv <- FALSE
+        } else reltol.conv <- tmp <= abs(reltol)
       } # ELSE end
                      
       pbest.fit.iter.prior <- pbest.fit.iter
 
       # Gbest was improved ?
-      ifelse(gbest.fit.prior==gbest.fit, improvement <- FALSE, improvement <- TRUE) 
+      if (gbest.fit.prior==gbest.fit) {
+        improvement <- FALSE
+      } else improvement <- TRUE
 
       gbest.fit.prior <- gbest.fit
             
@@ -2497,7 +2772,7 @@ hydroPSO <- function(
       } else if (reltol.conv) {
 	end.type.stg <- "Converged ('reltol' criterion)"
 	end.type.code <- 1
-      } else if (nfn >= maxfn) {
+      } else if (nfn.eff >= maxfn) {
 	end.type.stg <- "Maximum number of function evaluations reached"
 	end.type.code <- 2
       } else if (iter >= maxit) {
@@ -2521,13 +2796,18 @@ hydroPSO <- function(
         # File 'BestParamPerIter.txt' #
         GoF <- gbest.fit
 	if(is.finite(GoF)) {
+	
+	  if (normalise) {
+            temp <- X.best.part[gbest.pos, ] * (upper.ini - lower.ini) + lower.ini
+          } else temp <- X.best.part[gbest.pos, ]
+	                    
 	  writeLines( as.character( c(iter,
 	                              formatC(GoF, format="E", digits=digits, flag=" "), 
-	                              formatC(X.best.part[gbest.pos, ], format="E", digits=digits, flag=" ")	                                                            
+	                              formatC(temp, format="E", digits=digits, flag=" ")	                                                            
 	                          ) ), BestParamPerIter.TextFile, sep="  ") 
 	} else writeLines( as.character( c(iter,
 	                                   "NA",
-	                                   formatC(X.best.part[gbest.pos, ], format="E", digits=digits, flag=" ")                                                                                  
+	                                   formatC(temp, format="E", digits=digits, flag=" ")                                                                                  
 	                               ) ), BestParamPerIter.TextFile, sep="  ")
 	writeLines("", BestParamPerIter.TextFile)  
 	flush(BestParamPerIter.TextFile)
@@ -2556,6 +2836,8 @@ hydroPSO <- function(
 
     } # WHILE end
     ########################## END Main Iteration Loop #########################
+    
+    if (normalise) X.best.part <- X.best.part * (UPPER.ini - LOWER.ini) + LOWER.ini
 
     if (write2disk) {
       close(OFout.Text.file)        
@@ -2574,8 +2856,9 @@ hydroPSO <- function(
     ############################################################################  
     # Sorting the particles according to their best fit
     ############################################################################  
-    ifelse(MinMax=="max", sorted.fit <- sort(pbest.fit, decreasing= TRUE), 
-			  sorted.fit <- sort(pbest.fit, decreasing= FALSE) ) 
+    if (MinMax=="max") {
+      sorted.fit <- sort(pbest.fit, decreasing= TRUE)
+    } else sorted.fit <- sort(pbest.fit, decreasing= FALSE)
 
     sorted.index <- pmatch(sorted.fit, pbest.fit)
 
@@ -2590,6 +2873,13 @@ hydroPSO <- function(
 
       PSOparam.TextFile <- file(PSOparam.fname, "a")    
       
+      writeLines("================================================================================", PSOparam.TextFile) 
+      writeLines(c("Total fn calls    :", nfn-1), PSOparam.TextFile, sep="  ")
+      writeLines("", PSOparam.TextFile) 
+      writeLines(c("Nmbr of Iterations:", iter-1), PSOparam.TextFile, sep="  ")
+      writeLines("", PSOparam.TextFile) 
+      writeLines(c("Regroupings       :", nregroup), PSOparam.TextFile, sep="  ")
+      writeLines("", PSOparam.TextFile) 
       writeLines("================================================================================", PSOparam.TextFile) 
       writeLines(c("Ending Time       :", date()), PSOparam.TextFile, sep="  ")
       writeLines("", PSOparam.TextFile) 
@@ -2610,14 +2900,15 @@ hydroPSO <- function(
       writeLines("", tmp.TextFile)  
       close(tmp.TextFile) 
 
-      # Writing a file with the maximum ranges used during PSO
-      fname <- paste(file.path(drty.out), "/", "XMinMax.txt", sep="") 					
-      write.table(format(X.Boundaries, scientific=TRUE, digits=digits), file=fname, col.names=TRUE, row.names=FALSE, sep="  ", quote=FALSE) 
+      # Writing the file 'XMinMax.txt' with the parameter ranges used during PSO
+      fname <- paste(file.path(drty.out), "/", "XMinMax.txt", sep="") 	
+      ifelse(normalise, tmp <- X.Boundaries.ini, tmp <- X.Boundaries)				
+      write.table(format(tmp, scientific=TRUE, digits=digits), file=fname, col.names=TRUE, row.names=TRUE, sep="  ", quote=FALSE) 
 
       # Writing the file 'Particles_GofPerIter.txt', with the GoF for each particle in each iteration
       tmp.fname <- paste(file.path(drty.out), "/", "Particles_GofPerIter.txt", sep="") 
       tmp.TextFile  <- file(tmp.fname , "w+")
-      writeLines(paste("Iter", paste(colnames(Xt.fitness), collapse="    "), sep="    "), tmp.TextFile, sep="  ") 
+      writeLines(paste("Iter", paste("Part", 1:npart, collapse="    ", sep=""), sep="    "), tmp.TextFile, sep="  ") 
       writeLines("", tmp.TextFile)  
       for ( i in (1:niter.real) ) {               
 	tmp <- formatC(Xt.fitness[i, ], format="E", digits=digits, flag=" ")
@@ -2628,13 +2919,14 @@ hydroPSO <- function(
 
       # Writing the file 'BestParamPerParticle.txt', with ...
       fname <- paste(file.path(drty.out), "/", "BestParamPerParticle.txt", sep="") 
-      tmp <- cbind(X.best.part, pbest.fit)
-      colnames(tmp)[ncol(tmp)] <- "GoF"	
+      tmp <- cbind(pbest.fit, X.best.part)
+      colnames(tmp) <- c("GoF", param.IDs)
       write.table(format(tmp, scientific=TRUE, digits=digits), file=fname, col.names=TRUE, row.names=FALSE, sep="  ", quote=FALSE)
 
       # Writing the file 'X.neighbours.txt' 
-      fname <- paste(file.path(drty.out), "/", "Particles_Neighbours.txt", sep="") 	
-      write.table(X.neighbours, file=fname, col.names=TRUE, row.names=TRUE, sep="  ", na="", quote=FALSE)
+      fname <- paste(file.path(drty.out), "/", "Particles_Neighbours.txt", sep="") 
+      ifelse(topology == "lbest", nc <- K, nc <- npart)
+      write.table(X.neighbours, file=fname, col.names=paste("Neigh", 1:nc, sep=""), row.names=paste("Part", 1:npart, sep=""), sep="  ", na="", quote=FALSE) 
 
       # Writing the file 'LocalBest.txt' 
       fname <- paste(file.path(drty.out), "/", "LocalBest.txt", sep="") 	
@@ -2644,7 +2936,12 @@ hydroPSO <- function(
 
 	hydroPSOparam.TextFile <- file(hydroPSOparam.fname, "a")    
 	
-	writeLines("================================================================================", hydroPSOparam.TextFile) 
+	writeLines("================================================================================", PSOparam.TextFile) 
+        writeLines(c("Total model calls      :", nfn-1), PSOparam.TextFile, sep="  ")
+        writeLines("", PSOparam.TextFile) 
+        writeLines(c("Effective model calls  :", nfn.eff-1), PSOparam.TextFile, sep="  ")
+        writeLines("", PSOparam.TextFile) 
+        writeLines("================================================================================", hydroPSOparam.TextFile) 
 	writeLines(c("Ending Time            :", date()), hydroPSOparam.TextFile, sep=" ")
 	writeLines("", hydroPSOparam.TextFile) 
 	writeLines("================================================================================", hydroPSOparam.TextFile) 
@@ -2695,7 +2992,8 @@ hydroPSO <- function(
       nelements <- nelements + 2                
     } # IF end
 
-    if (out.with.fit.iter) {            
+    if (out.with.fit.iter) {  
+      Xt.fitness <- Xt.fitness[1:(iter-1), ]
       out[[nelements+1]] <- Xt.fitness          
       names(out)[nelements+1] <- c("part.fit.per.iter")  
     } # IF end
@@ -2714,19 +3012,51 @@ hydroPSO <- function(
       model.FUN.args <- modifyList(model.FUN.args, 
 				   list(param.values=out[["par"]])
 				   ) 
-      hydromod.out   <- do.call(model.FUN, as.list(model.FUN.args))   
+      hydromod.out   <- do.call(model.FUN, as.list(model.FUN.args))              
 
-      if ("obs" %in% names(model.FUN.args)) {
-        fname <- paste(file.path(drty.out), "/", "Observations.txt", sep="") 	
-	obs <- model.FUN.args[["obs"]] 
+      # Writing observations and best model output
+      if ("obs" %in% names(model.FUN.args)) {      
+         if (date.fmt.exists) {
+           date.fmt <- model.FUN.args[["date.fmt"]]
+         } else date.fmt <- "%Y-%m-%d"        
+         if ( gof.Ini.exists | gof.Fin.exists ) 
+             if ( grepl("%H", date.fmt, fixed=TRUE) | grepl("%M", date.fmt, fixed=TRUE) |
+                     grepl("%S", date.fmt, fixed=TRUE) | grepl("%I", date.fmt, fixed=TRUE) |
+                     grepl("%p", date.fmt, fixed=TRUE) | grepl("%X", date.fmt, fixed=TRUE)
+                 ) { subdaily.date.fmt <- TRUE
+                   } else subdaily.date.fmt <- FALSE
+                     
+        obs <- model.FUN.args[["obs"]]
+        sim <- hydromod.out[["sim"]]  
+        
+        obs.fname <- paste(file.path(drty.out), "/", "Observations.txt", sep="") 
+        sim.fname <- paste(file.path(drty.out), "/", "BestModel_out.txt", sep="") 	
+	 
         if (is.zoo(obs)) {
-          if (gof.Ini.exists) obs <- window( obs, start=as.Date(model.FUN.args[["gof.Ini"]]) )
-          if (gof.Fin.exists) obs <- window( obs, end=as.Date(model.FUN.args[["gof.Fin"]]) )
-          write.zoo(x=obs, file=fname)
+          if (gof.Ini.exists) {
+            if (subdaily.date.fmt) {
+               gof.Ini <- as.POSIXct(model.FUN.args[["gof.Ini"]], format=date.fmt)
+            } else gof.Ini <- as.Date(model.FUN.args[["gof.Ini"]], format=date.fmt)
+            obs <- window(obs, start=gof.Ini)
+            sim <- window(sim, start=gof.Ini)
+          } # IF end
+          if (gof.Fin.exists) {
+            if (subdaily.date.fmt) {
+              gof.Fin <- as.POSIXct(model.FUN.args[["gof.Fin"]], format=date.fmt)
+            } else gof.Fin <- as.Date(model.FUN.args[["gof.Fin"]], format=date.fmt)
+            obs <- window(obs, end=gof.Fin)
+            sim <- window(sim, end=gof.Fin)
+          } # IF end
+          write.zoo(x=obs, file=obs.fname)
+          write.zoo(x=sim, file=sim.fname)
         } else {
             obs <- cbind(1:length(obs), obs)
-            write.table(obs, file=fname, col.names=FALSE, row.names=FALSE, sep="  ", quote=FALSE)
+            write.table(obs, file=obs.fname, col.names=FALSE, row.names=FALSE, sep="  ", quote=FALSE)
+            
+            sim <- cbind(1:length(sim), sim)
+            write.table(obs, file=sim.fname, col.names=FALSE, row.names=FALSE, sep="  ", quote=FALSE)
           } # ELSE end
+          
       } # IF end
 
     } # IF end    

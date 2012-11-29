@@ -11,13 +11,13 @@
 plot_2parOF
 }
 \description{
-This function plots the values of the objective function in a two dimensional box, where the boundaries of each parameter are used as axis limit
+This function plots the values of the objective function in a two dimensional box, where the boundaries of each parameter are used as axis limits
 }
 \usage{
-plot_2parOF(params, gofs, p1.name, p2.name, type="sp", MinMax=c("min", "max"), 
+plot_2parOF(params, gofs, p1.name, p2.name, type="sp", MinMax=c("min","max"), 
             gof.name="GoF", main=paste(gof.name, "Surface"), GOFcuts, 
             colorRamp= colorRampPalette(c("darkred", "red", "orange", "yellow",
-            "green", "darkgreen", "cyan")), points.cex=0.7, alpha=1, 
+            "green", "darkgreen", "cyan")), points.cex=0.7, alpha=0.65, 
             axis.rot=c(0, 0), auto.key=TRUE, key.space= "right")
 }
 %- maybe also 'usage' for other objects documented here.
@@ -40,7 +40,8 @@ character, type of plot. Valid values are: \cr
 -) \kbd{scatter3d}: 3d scatterogram
 }
   \item{MinMax}{
-character, indicates whether the optimum value in \code{gofs} corresponds to the minimum or maximum of the objective function. Valid values are in: \code{c('min', 'max')}
+character, indicates whether the optimum value in \code{gofs} corresponds to the minimum or maximum of the objective function. Valid values are in: \code{c('min', 'max')}. \cr
+By default, \code{MinMax='min'} which plot particles with lower goodness-of-fit values on top of those with larger values, in each one of the output figures
 }
   \item{gof.name}{
 character, name of the objective function to be plotted. It has to correspond to the name of one column of \code{params}
@@ -49,8 +50,8 @@ character, name of the objective function to be plotted. It has to correspond to
 character with the title for the plot
 }
   \item{GOFcuts}{
-numeric, specifies at which values of the objective function \code{gof.name} the colours of the plot have to change \cr
-If \code{GOFcuts} is missing, the interval for colours change are defined by the five quantiles of the objective function computed by \code{\link[stats]{fivenum}}
+numeric, specifies at which values of the objective function given in \code{gofs} the colours of the plot have to change \cr
+If \code{GOFcuts} is missing, the interval for colours change are defined by the (unique values of the) five quantiles of \code{gofs}, computed by \code{\link[stats]{fivenum}}
 }
   \item{colorRamp}{
 R function defining the colour ramp to be used for colouring the pseudo-3D dotty plots of Parameter Values, OR character representing those colours

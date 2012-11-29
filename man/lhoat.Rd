@@ -20,8 +20,9 @@ lhoat(fn="hydromod", lower=-Inf, upper=Inf, control=list(),
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{fn}{
-character, name of a valid R function to be optimised or character value \kbd{'hydromod'}. When \code{fn='hydromod'} the algorithm uses \code{model.FUN} and \code{model.FUN.args} to extract the values simulated by the model and to compute its corresponding goodness-of-fit function. When \code{fn!='hydromod'} the algorithm uses the value(s) returned by \code{fn} as both model output and its corresponding goodness-of-fit \cr
-When \code{fn='hydromod'} the algorithm will optimise the model defined by \code{model.FUN} and \code{model.args}
+character, name of a valid R function to be analysed or the character value \sQuote{hydromod}. \cr
+-) When \code{fn!='hydromod'}, the first argument of \code{fn} has to be a vector of parameters over which the analysis is going to take place. It should return a scalar result. When \code{fn!='hydromod'} the algorithm uses the value(s) returned by \code{fn} as both model output and its corresponding goodness-of-fit measure \cr
+-) When \code{fn=='hydromod'} the algorithm will analyse the model defined by \code{model.FUN} and \code{model.args}, which are used to extract the values simulated by the model and to compute its corresponding goodness-of-fit measure
 }
 %%\item{\dots}{
 %%further arguments to be passed to \code{fn}
@@ -47,9 +48,6 @@ list with the arguments to be passed to \code{model.FUN}
 } 
 }
 \details{
-By default the hydroPSO function performs minimization of \code{fn}, but it will maximize \code{fn} if \code{MinMax='max'} \cr
-
-The default control arguments in hydroPSO implements the Standard PSO 2007 - SPSO2007 (see Clerc 2005; Clerc et al., 2010). At the same time, hydroPSO function provides options for clamping the maximal velocity, regrouping strategy when premature convergence is detected, time-variant acceleration coefficients, time-varying maximum velocity, (non-)linear / random / adaptive / best-ratio inertia weight definitions, random or LHS initialization of positions and velocities, synchronous or asynchronous update, 4 alternative neighbourhood topologies among others
 
 The \code{control} argument is a list that can supply any of the following components:
   \describe{  
@@ -121,7 +119,7 @@ nparam <- 5
 # same sensitivity
 \dontrun{
 lhoat(
-      fn="sphere", 
+      fn=sphere, 
       lower=rep(-100,nparam), 
       upper=rep(100,nparam),
       control=list(N=10, f=0.1, write2disk=TRUE)
@@ -129,7 +127,8 @@ lhoat(
       )
 
 # Plotting dotty plots      
-read_params(file="LH_OAT-gof.txt", header=TRUE, skip=0, param.cols=2:(nparam+1), of.col=1, of.name="sphere", ptype="dottyplot")
+read_params(file="LH_OAT-gof.txt", header=TRUE, skip=0, param.cols=2:(nparam+1),
+            of.col=1, of.name="sphere", ptype="dottyplot")
 }      
 
 }

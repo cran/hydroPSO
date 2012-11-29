@@ -15,11 +15,12 @@ For \kbd{n} user-defined parameters, the function creates \kbd{sum(1:(npar-1))} 
 The \kbd{sum(1:(npar-1))} plots corresponds to all the possible combinations of 2 parameters among all the \kbd{n} parameters provided
 }
 \usage{
-plot_NparOF(params, gofs, param.names=colnames(params), MinMax=c("min", "max"), 
-           nrows="auto",  gof.name="GoF", main=paste(gof.name, "Surface"), 
-           GOFcuts="auto", colorRamp= colorRampPalette(c("darkred", "red", 
-           "orange", "yellow", "green", "darkgreen", "cyan")), points.cex=0.7, 
-           alpha=1, axis.rot=c(0, 0), verbose=TRUE)
+plot_NparOF(params, gofs, param.names=colnames(params), 
+         MinMax=c(NULL,"min","max"), beh.thr=NA, nrows="auto", 
+         gof.name="GoF", main=paste(gof.name, "Surface"), GOFcuts="auto", 
+         colorRamp= colorRampPalette(c("darkred", "red", "orange", "yellow", 
+         "green", "darkgreen", "cyan")), points.cex=0.7, alpha=0.65, 
+         axis.rot=c(0, 0), verbose=TRUE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -33,7 +34,16 @@ numeric with the values of goodness-of-fit values for each one of the parameters
 character, names for the parameters in \code{params} that have to be plotted (\code{param.names} can be a subset of \code{params})
 }
   \item{MinMax}{
-character, indicates whether the optimum value in \code{gofs} corresponds to the minimum or maximum of the objective function. Valid values are in: \code{c('min', 'max')}
+character, indicates whether the optimum value in \code{gofs} corresponds to the minimum or maximum of the objective function. \cr
+It is required when \code{beh.thr} is provided. Valid values are in: \code{c(NULL, 'min', 'max')} \cr
+By default, \code{MinMax=NULL} which plot particles in the order they are provided in \code{params} and \code{gofs} in each one of the output figures \cr
+If \code{MinMax='min'} place particles with lower goodness-of-fit values are plotted on top of those with larger values, in each one of the output figures, and vice-versa for \code{MinMax='max'}.
+}
+  \item{beh.thr}{
+OPTIONAL \cr
+numeric, threshold value used for selecting parameter sets that have to be used in the analysis (\sQuote{behavioural parameters}, using the GLUE terminology) \cr
+If \code{MinMax='min'}, only parameter sets with a goodness-of-fit value (given by \code{gofs}) less than or equal to \code{beh.thr} will be considered for the subsequent analysis. \cr
+If \code{MinMax='max'}, only parameter sets with a goodness-of-fit value (given by \code{gofs}) greater than or equal to \code{beh.thr} will be considered for the subsequent analysis
 }
   \item{nrows}{
 numeric, number of rows to be used in the plotting window \cr
@@ -46,8 +56,10 @@ character, name of the objective function to be plotted. It has to correspond to
 character, title for the plot
 }
   \item{GOFcuts}{
-numeric, specifies at which values of the objective function \code{gof.name} the colours of the plot have to change \cr
-If \code{GOFcuts="auto"}, the interval for colours change are defined by the five quantiles of the objective function computed by \code{\link[stats]{fivenum}}
+numeric, specifies at which values of the objective function given in \code{gofs} the colours of the plot have to change \cr
+If \code{GOFcuts="auto"} and \code{MinMax=NULL}, the intervals are defined by the (unique values of the) \code{gofs} quantiles corresponding to the following probabilities: \code{probs=c(0, 0.1, 0.25, 0.5, 0.75, 0.9, 1)} \cr
+If \code{GOFcuts="auto"} and \code{MinMax='min'}, the intervals are defined by the (unique values of the) \code{gofs} quantiles corresponding to the following probabilities: \code{probs=c(0, 0.25, 0.5, 0.85, 0.9, 0.97, 1)} \cr
+If \code{GOFcuts="auto"} and \code{MinMax='max'}, the intervals are defined by the (unique values of the) \code{gofs} quantiles corresponding to the following probabilities: \code{probs=c(0, 0.03, 0.1, 0.15, 0.5, 0.75, 1)}
 }
   \item{colorRamp}{
 R function defining the colour ramp to be used for colouring the pseudo-3D dotty plots of Parameter Values, OR character representing those colours
@@ -88,11 +100,15 @@ Mauricio Zambrano-Bigiarini, \email{mzb.devel@gmail.com}
 %% ~Make other sections like Warning with \section{Warning }{....} ~
 
 \seealso{
-\code{\link{plot_2parOF}}, \code{\link{read_results}}, \code{\link{plot_results}}, \code{\link{plot_GofPerParticle}}, \code{\link{plot_ParamsPerIter}}
+\code{\link{plot_2parOF}}, \code{\link{read_results}}, \code{\link{plot_results}}, \code{\link{plot_GofPerParticle}}, \code{\link{plot_params}}, \code{\link{plot_ParamsPerIter}}
 }
 \examples{
 # Number of dimensions to be optimised
-nparam <- 5
+D <- 5
+
+# Boundaries of the search space (Rosenbrock test function)
+lower <- rep(-30, D)
+upper <- rep(30, D)
 
 \dontrun{
 
@@ -102,11 +118,8 @@ setwd("~")
 # Setting the seed
 set.seed(100)
 
-# Running PSO with the 'rosenbrock' test function, writing the results to text files
-hydroPSO(fn="rosenbrock",
-        lower=rep(-30, nparam), upper=rep(30, nparam),    
-        control=list(MinMax="min", npart=2*nparam, write2disk=TRUE)
-        ) # hydroPSO
+# Optimising the 'Rosenbrock' test function, and writing the results to text files
+hydroPSO(fn=rosenbrock, lower=lower, upper=upper, control=list(write2disk=TRUE) ) 
   
 # reading the 'Particles.txt' output file of hydroPSO
 setwd("PSO.out")

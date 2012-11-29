@@ -27,7 +27,7 @@ The function \code{plot_results} takes the outputs of the \code{read_results} fu
  1) Dotty plots of parameter values \cr
  2) Histograms of parameter values \cr
  3) Boxplots of parameter values \cr
- 4) Correlation matrix among parameter values \cr
+ 4) Correlation matrix among parameter values (optional) \cr
  5) Empirical CDFs of parameter values\cr
  6) Parameter values vs Number of Model Evaluations \cr
  7) (pseudo) 3D dotty plots of (selected) parameter values \cr
@@ -40,24 +40,26 @@ The function \code{plot_results} takes the outputs of the \code{read_results} fu
 11) Convergence Measures (Gbest and normSwarmRadius) vs Iteration Number
 }
 \usage{
-read_results(drty.out="PSO.out", MinMax=NULL, beh.thr=NA, modelout.cols=NULL, verbose=TRUE)
+read_results(drty.out="PSO.out", MinMax=NULL, beh.thr=NA, 
+             modelout.cols=NULL, verbose=TRUE)
            
 plot_results(drty.out="PSO.out", param.names, gof.name="GoF", MinMax=NULL, 
      beh.thr=NA, beh.col="red", beh.lty=1, beh.lwd=2, nrows="auto", 
      col="black", ylab=gof.name, main=NULL, pch=19, cex=0.5, cex.main=1.7, 
-     cex.axis=1.3, cex.lab=1.5, breaks="Scott", freq=TRUE,
+     cex.axis=1.3, cex.lab=1.5, breaks="Scott", freq=TRUE, do.pairs=FALSE,
      weights=NULL, byrow=FALSE, leg.cex=1.2,
      %%...
      %% Parameters for the 3D dotty plots
      dp3D.names="auto", GOFcuts="auto", 
      colorRamp= colorRampPalette(c("darkred", "red", "orange", "yellow", 
-     "green", "darkgreen", "cyan")), alpha=1, points.cex=0.7, 
+     "green", "darkgreen", "cyan")), alpha=0.65, points.cex=0.7, 
      %% Parameters for GoF per Particle
      ptype="one",
      %% Parameters for 'plot_out'
      modelout.cols=NULL,
      ftype="o", FUN=mean, 
-     quantiles.desired= c(0.05,0.5,0.95), quantiles.labels= c("Q5","Q50","Q95"),
+     quantiles.desired= c(0.05,0.5,0.95), 
+     quantiles.labels= c("Q5","Q50","Q95"),
      %% Parameters for plot_convergence'
      legend.pos="topright", 
      %% PNG options
@@ -160,6 +162,10 @@ breaks for plotting the histograms of the parameter sets. See \code{\link[graphi
   \item{freq}{
 OPTIONAL. Only used when \code{plot=TRUE} \cr
 logical, if TRUE, the histogram graphic is a representation of frequencies, the counts component of the result; if FALSE, probability densities, component density, are plotted (so that the histogram has a total area of one). Defaults to TRUE if and only if breaks are equidistant (and probability is not specified). See \code{\link[graphics]{hist}}
+}
+  \item{do.pairs}{
+OPTIONAL. Only used when \code{plot=TRUE} \cr
+logical, indicates whether a correlation matrix among parameters has to be plotted. If the number of parameter sets tried during the optimisation is large, it may require some time. 
 }
   \item{weights}{
 OPTIONAL. Only used when \code{plot=TRUE} \cr
@@ -286,7 +292,7 @@ The function \code{read_results} returns a list with the following elements:
 \item{model.best}{numeric with the best model / objective function value. In order to be computed, the user has to provide a valid value for \code{MinMax}. See \code{\link{read_out}} }
 \item{model.obs}{numeric with the observed values used during the optimisation. See \code{obs}}
 \item{convergence.measures}{matrix/data.frame with the convergence measures. See \code{\link{read_convergence}} function}
-\item{part.GofPerIter}{matrix/data.frame with the goodness-of-fit only for all the particles during all the iterations}
+\item{part.GofPerIter}{matrix/data.frame with the goodness-of-fit values for all the particles during all the iterations. It has as many columns as parameters to be optimised and as many rows as the number of iterations effectively carried out}
 }
 %%\references{
 %%

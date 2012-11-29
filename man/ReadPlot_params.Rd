@@ -19,7 +19,7 @@ Reading/Plotting the values of different parameter sets
 \description{
 This function reads a file containing different parameter sets and their corresponding goodness-of-fit values \cr
 
-If \code{file} is one of the following: \cr
+The following values of \code{file} set default values for \code{header}, \code{skip} and \code{param.cols}: \cr
 -) \kbd{modelpara.out},       created by the GLUE algorithm of SWAT-CUP, \cr
 -) \kbd{modelpara.beh},       created by the GLUE algorithm of SWAT-CUP, \cr
 -) \kbd{goal.sf2},            created by the SUFI-2 algorithm of SWAT-CUP \cr
@@ -37,8 +37,8 @@ read_params(file, ...)
      MinMax=NULL, beh.thr=NA, beh.col="red", beh.lty=1, beh.lwd=2, 
      nrows="auto", col="#00000030", ylab=of.name, main=NULL, pch=19, 
      cex=0.5, cex.main=1.5, cex.axis=1.5, cex.lab=1.5, 
-     breaks="Scott", freq=TRUE, verbose=TRUE, ..., do.png=FALSE, png.width=1500, 
-     png.height=900, png.res=90, png.fname="Parameters.png")
+     breaks="Scott", freq=TRUE, verbose=TRUE, ..., do.png=FALSE, 
+     png.width=1500, png.height=900, png.res=90, png.fname="Parameters.png")
 
 plot_params(params, ...)  
          
@@ -123,7 +123,9 @@ Valid values are in: \code{c('min', 'max')}
 }
   \item{beh.thr}{
 OPTIONAL \cr
-numeric, value for drawing a horizontal line for separating behavioural from non behavioural parameter sets
+numeric, threshold value used for selecting parameter sets that have to be used in the analysis (\sQuote{behavioural parameters}, using the GLUE terminology) \cr
+If \code{MinMax='min'}, only parameter sets with a goodness-of-fit value (given by \code{gofs}) less than or equal to \code{beh.thr} will be considered for the subsequent analysis. \cr
+If \code{MinMax='max'}, only parameter sets with a goodness-of-fit value (given by \code{gofs}) greater than or equal to \code{beh.thr} will be considered for the subsequent analysis
 }
   \item{beh.col}{
 OPTIONAL. Only used when \code{plot=TRUE} \cr
@@ -240,9 +242,9 @@ setwd("~")
 # Setting the seed
 set.seed(100)
 
-# Runing PSO with the 'sphere' test function, writting the results to text files
+# Runing PSO with the 'sphere' test function, writing the results to text files
 hydroPSO(
-        fn= "sphere", lower=rep(-100, nparam), upper=rep(100, nparam),
+        fn= sphere, lower=rep(-100, nparam), upper=rep(100, nparam),
         control=list(npart=2*nparam, maxit=100, write2disk=TRUE, plot=TRUE)  
         ) 
 

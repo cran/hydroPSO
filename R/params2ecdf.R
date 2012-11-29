@@ -32,10 +32,13 @@ params2ecdf <- function(params, ...) UseMethod("params2ecdf")
 ################################################################################                                                                                
 # Author : Mauricio Zambrano-Bigiarini                                         #
 # Started: 12-Oct-2011                                                         #        
-# Updates: 15-Feb-2012 ; 21-Feb-2012                                           #
+# Updates: 15-Feb-2012 ; 21-Feb-2012 ; 19-Nov-2012                             #
 ################################################################################
 params2ecdf.default <- function(params, 
                                 param.names=NULL,
+                                gofs=NULL,
+                                MinMax=NULL, 
+                                beh.thr=NA, 
                                 weights=NULL,                                                  
                                 byrow=FALSE, 
                                 plot=TRUE,
@@ -63,17 +66,34 @@ params2ecdf.default <- function(params,
           
  # number of parameters
  nparam <- NCOL(params)
-    
- if (nparam==1) params <- matrix(params, ncol=1)
+
+ # Number of parameter sets
+ n <- NROW(params) 
     
  # Checking 'param.names'
  if (length(param.names) != nparam)
-   stop(paste("Invalid argument: 'length(param.names) = ", length(param.names), " != ", nparam, " = nparam'", sep=""))
+   stop("Invalid argument: 'length(param.names) = ", length(param.names), " != ", nparam, " = nparam'")
+
+ # Checking 'beh.thr'
+ if ( !is.na(beh.thr) ) {
+   if ( is.null(MinMax) )
+     stop("Missing argument: 'MinMax' has to be provided before using 'beh.thr' !!")        
+   if ( is.null(gofs) ) {
+     stop("Missing argument: 'gofs' has to be provided before using 'beh.thr' !!")
+   } else if (length(gofs) != n)
+       stop("Invalid argument: 'length(gofs) != nrow(params)' (", length(gofs), "!=", n, ") !!" ) 
+ } # IF end
+         
+ # Checking 'MinMax'
+ if ( !is.null(MinMax) ) {
+   if ( !(MinMax %in% c("min", "max")) )
+     stop("Invalid argument: 'MinMax' must be in c('min', 'max')")
+ } # IF end
       
  # checking that the user provided 1 weight for each behavioural parameter set
  if ( !is.null(weights) ) {
-   if (length(weights) != NROW(params) )
-     stop( paste("Invalid argument: 'length(w) != nrow(params)' (", length(weights), "!=", nrow(params), ")", sep="") )
+   if (length(weights) != n )
+     stop("Invalid argument: 'length(w) != nrow(params)' (", length(weights), "!=", n, ")" )
  } # IF end
     
  # creating the final output, a list with the ECDFs 
@@ -82,6 +102,28 @@ params2ecdf.default <- function(params,
  # Checking 'do.png' and 'plot'
  if (do.png==TRUE & plot==FALSE)
    stop("Invalid argument: 'plot=FALSE' & 'do.png=TRUE' is not possible !!")
+
+ if (nparam==1) params <- matrix(params, ncol=1)
+
+ # Filtering out those parameter sets above/below a certain threshold
+ if (!is.na(beh.thr)) {  
+   # Checking 'beh.thr'
+   mx <- max(gofs, na.rm=TRUE)
+   if (beh.thr > mx)
+     stop("Invalid argument: 'beh.thr' must be lower than ", mx ,"!!")
+    
+   # Computing the row index of the behavioural parameter sets
+   ifelse(MinMax=="min", beh.row.index <- which(gofs <= beh.thr), 
+                         beh.row.index <- which(gofs >= beh.thr) )
+    
+   # Removing non-behavioural parameter sets & gofs
+   params <- params[beh.row.index, ]
+   gofs   <- gofs[beh.row.index]
+   
+   # Amount of behavioural parameter sets 
+   nbeh <- nrow(params)
+   if (verbose) message( "[ Number of behavioural parameter sets: ", nbeh, " ]" )
+ } # IF end
     
  ########################     Plotting Preliminars   ########################
  # If there are too many parameters to plot,more than 1 plot is produced
@@ -143,12 +185,12 @@ params2ecdf.default <- function(params,
            char2 <- "ECDF"
          } # ELSE end
     
-       if (verbose) message( paste("[ Computing the ", char1, " for '", 
-                                 format(param.names[p], width=ncharmax), 
-                                 "' , ", p, "/", nparam.bak, " => ", 
-                                 format(round(100*i/nparam.bak, 2), width=5, 
-                                 nsmall=2, justify="left"),
-                                 "% ]", sep= "") )
+       if (verbose) message("[ Computing the ", char1, " for '", 
+                             format(param.names[p], width=ncharmax), 
+                             "' , ", p, "/", nparam.bak, " => ", 
+                             format(round(100*i/nparam.bak, 2), width=5, 
+                             nsmall=2, justify="left"),
+                             "% ]" )
     
        # Weighted ECDF for the "i-th" desired quantile, where the unweighted 
        # 'i-th' quantile of each behavioural parameter set is now weighted by the 
@@ -239,13 +281,16 @@ params2ecdf.default <- function(params,
 } # END 'params2ecdf.default'
 
 
-################################################################################                                                                              #  
+################################################################################  
 # Author : Mauricio Zambrano-Bigiarini                                         #
 # Started: 12-Oct-2011                                                         #        
-# Updates: 12-Oct-2011                                                         #
+# Updates: 12-Oct-2011 ; 19-Nov-2012                                           #
 ################################################################################
 params2ecdf.matrix <- function(params, 
                                param.names=colnames(params),
+                               gofs=NULL,
+                               MinMax=NULL, 
+                               beh.thr=NA, 
                                weights=NULL,                                                  
                                byrow=FALSE, 
                                plot=TRUE,
@@ -270,6 +315,9 @@ params2ecdf.matrix <- function(params,
                                ) {
  params2ecdf.default(params=params, 
                      param.names=param.names,
+                     gofs=gofs,
+                     MinMax=MinMax, 
+                     beh.thr=beh.thr, 
                      weights=weights,                                                  
                      byrow=byrow, 
                      plot=plot,
@@ -294,13 +342,16 @@ params2ecdf.matrix <- function(params,
                      )                         
 } # END 'params2ecdf.data.frame'
 
-################################################################################                                                                              #  
+################################################################################  
 # Author : Mauricio Zambrano-Bigiarini                                         #
 # Started: 12-Oct-2011                                                         #        
-# Updates: 12-Oct-2011                                                         #
+# Updates: 12-Oct-2011 ; 19-Nov-2012                                           #
 ################################################################################
 params2ecdf.data.frame <- function(params, 
                                    param.names=colnames(params),
+                                   gofs=NULL,
+                                   MinMax=NULL, 
+                                   beh.thr=NA, 
                                    weights=NULL,                                                  
                                    byrow=FALSE, 
                                    plot=TRUE,
@@ -327,6 +378,9 @@ params2ecdf.data.frame <- function(params,
  
  params2ecdf.default(params=params, 
                      param.names=param.names,
+                     gofs=gofs,
+                     MinMax=MinMax, 
+                     beh.thr=beh.thr, 
                      weights=weights,                                                  
                      byrow=byrow, 
                      plot=plot,

@@ -331,6 +331,22 @@ logical, indicates if progress messages are to be printed. By default \code{verb
 OPTIONAL. Used only when \code{verbose=TRUE} \cr
 The frequency of report messages printed to the screen. Default to every 100 iterations
 } 
+  \item{parallel}{
+character, indicates how to parallelise \sQuote{hydroPSO} (to be precise, only the evaluation of the objective function \code{fn} is parallelised). Valid values are: \cr
+-)\kbd{none}: no parallelisation is made (this is the default value)\cr
+-)\kbd{multicore}: parallel computations for machines with multiple cores or CPUs. The evaluation of the objective function \code{fn} is done with the \code{\link[multicore]{mclapply}} function of the \pkg{multicore} package. It requires POSIX-compliant OS (essentially anything but Windows) \cr
+-)\kbd{parallel}: parallel computations for network clusters or machines with multiple cores or CPUs. A \sQuote{FORK} cluster is created with the \code{\link[parallel]{makeForkCluster}} function. The evaluation of the objective function \code{fn} is done by using with the \code{\link[parallel]{clusterApply}} function of the \pkg{parallel} package\cr
+-)\kbd{parallelWin}: parallel computations for network clusters or machines with multiple cores or CPUs (this is the only parallel implementation that works on Windows machines). A \sQuote{PSOCK} cluster is created with the \code{\link[parallel]{makeCluster}} function. The evaluation of the objective function \code{fn} is done with the \code{\link[parallel]{clusterApply}} function of the \pkg{parallel} package.
+} 
+  \item{par.nnodes}{
+OPTIONAL. Used only when \code{parallel!='none'} \cr
+numeric, indicates the number of cores/CPUs to be used in the local multi-core machine, or the number of nodes to be used in the network cluster. \cr
+By default \code{par.nnodes} is set to the amount of cores detected by the function \code{detectCores()} (\pkg{multicore} or \pkg{parallel} package)
+} 
+  \item{par.pkgs}{
+OPTIONAL. Used only when \code{parallel='parallelWin'} \cr
+list of package names (as characters) that need to be loaded on each node for allowing the objective function \code{fn} to be evaluated
+} 
 }
 }
 
@@ -399,7 +415,7 @@ integer code where \code{0} indicates that the algorithm terminated by reaching 
 
 \cite{Yong-Ling Zheng; Long-Hua Ma; Li-Yan Zhang; Ji-Xin Qian. On the convergence analysis and parameter selection in particle swarm optimization. Machine Learning and Cybernetics, 2003 International Conference on , vol.3, no., pp. 1802-1807 Vol.3, 2-5 Nov. 2003. doi: 10.1109/ICMLC.2003.1259789}
 
-\cite{Zambrano-Bigiarini, M., and R. Rojas. 2012. hydroPSO: A Model-independent Particle Swarm Optimization Software for Model Calibration, Environmental Modelling & Software, (under-review)}
+\cite{Zambrano-Bigiarini, M., and R. Rojas. 2012. hydroPSO: A Model-independent Particle Swarm Optimization Software for Model Calibration, Environmental Modelling & Software, (submitted)}
 
 \cite{Zhao, B.  An Improved Particle Swarm Optimization Algorithm for Global Numerical Optimization. In Proceedings of International Conference on Computational Science (1). 2006, 657-664}
 

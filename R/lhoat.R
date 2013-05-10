@@ -30,6 +30,7 @@
 # Author  : Mauricio Zambrano-Bigiarini                                        #
 # Started : 23-Jun-2011                                                        #
 # Updates : 26-Jan-2012 ; 02-Feb-2012 ; 13-Feb-2012 ; 23-Feb-2012              #
+#           09-May-2013                                                        #
 ################################################################################
 
 lhoat <- function(
@@ -47,11 +48,17 @@ lhoat <- function(
         
   # Checking the name of the objective function
   if (missing(fn)) {
-     stop("Missing argument: 'fn' must be provided")
-  } else {
-      fn.name <- fn
-      fn      <- match.fun(fn)
-    } # ELSE end       
+      stop("Missing argument: 'fn' must be provided")
+  } else 
+      if ( is.character(fn) | is.function(fn) )  {
+        if (is.character(fn)) {
+          fn.name <- fn
+          fn      <- match.fun(fn)
+	} else if (is.function(fn)) {
+	    fn.name <- as.character(substitute(fn))
+	    fn      <- fn
+	  } # ELSE end
+      } else stop("Missing argument: 'class(fn)' must be in c('function', 'character')")      
         
   # checking length of 'lower' and 'upper'
   if (length(lower) != length(upper) )
@@ -101,7 +108,7 @@ lhoat <- function(
   if ( trunc(N) != N ) stop( "Invalid argument: 'N' must be integer" )
      
   # Checking that '0 < f < 1' 
-  if ( (f <= 0) | (f >= 1) ) stop( "Invalid argument: 'f' must be in [0,1]" )
+  if ( (f <= 0) | (f >= 1) ) stop( "Invalid argument: 'f' must be in ]0, 1[" )
    
         
   # 'hydromod' checkings
@@ -109,7 +116,7 @@ lhoat <- function(
 
     # Checking that 'param.ranges' really exists
     if ( !file.exists( param.ranges ) )
-       stop( paste("Invalid argument: The file '", param.ranges, "' doesn't exist !", sep="") ) 
+       stop( paste("Invalid argument: The file '", param.ranges, "' does not exist !", sep="") ) 
              
     # checking that 'model.FUN' is a valid function          
     if ( is.null(model.FUN) ) {
@@ -300,10 +307,12 @@ lhoat <- function(
   ##############################################################################
   while (j <= N ) {
   
-    # Opening the file 'LH_OAT-out.txt' for appending
-    model.out.text.file <- file(model.out.text.fname, "a")   
-    # Opening the file 'LH_OAT-gof.txt' for appending
-    gof.text.file <- file(gof.text.fname, "a") 
+    if (write2disk) { 
+      # Opening the file 'LH_OAT-out.txt' for appending
+      model.out.text.file <- file(model.out.text.fname, "a")   
+      # Opening the file 'LH_OAT-gof.txt' for appending
+      gof.text.file <- file(gof.text.fname, "a") 
+    } # IF end
   
     if (verbose) message("                             |                                ") 
     if (verbose) message("==============================================================")
@@ -402,10 +411,12 @@ lhoat <- function(
     i <- 1
     while(i <= P) {
     
-      # Opening the file 'LH_OAT-out.txt' for appending
-      model.out.text.file <- file(model.out.text.fname, "a")   
-      # Opening the file 'LH_OAT-gof.txt' for appending
-      gof.text.file <- file(gof.text.fname, "a") 
+      if (write2disk) { 
+        # Opening the file 'LH_OAT-out.txt' for appending
+        model.out.text.file <- file(model.out.text.fname, "a")   
+        # Opening the file 'LH_OAT-gof.txt' for appending
+        gof.text.file <- file(gof.text.fname, "a") 
+      } # IF end
     
       if (verbose) message("                             |                                ") 
       if (verbose) message("==============================================================")
@@ -455,7 +466,7 @@ lhoat <- function(
         if ( fn.name == "hydromod" ) {
           model.FUN.args <- modifyList(model.FUN.args, list(param.values=Theta.New)) 
           hydromod.out   <- do.call(model.FUN, as.list(model.FUN.args)) 
-        } else hydromod.out <- do.call(fn, list(Theta.Zero))
+        } else hydromod.out <- do.call(fn, list(Theta.New)) 
       
         ##########################################################################
         # 7)                     Extracting simulated values                     #                                 

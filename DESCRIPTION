@@ -1,8 +1,8 @@
 Package: hydroPSO
 Type: Package
 Title: Particle Swarm Optimisation, with focus on Environmental Models
-Version: 0.3-1-1
-Date: 2013-05-10
+Version: 0.3-2
+Date: 2013-05-29
 Author: Mauricio Zambrano-Bigiarini [aut, cre], Rodrigo Rojas [ctb]
 Authors@R: c(person("Mauricio", "Zambrano-Bigiarini",
         email="mzb.devel@gmail.com", role=c("aut","cre")),
@@ -40,7 +40,7 @@ Keywords: optimisation, optimization, calibration, environment,
         environmental sciences, hydrology, PSO
 LazyLoad: yes
 ByteCompile: TRUE
-Packaged: 2013-05-10 13:57:31 UTC; hzambran
+Packaged: 2013-05-29 00:28:55 UTC; hzambran
 NeedsCompilation: no
 Repository: CRAN
-Date/Publication: 2013-05-10 16:38:41
+Date/Publication: 2013-05-29 07:48:16

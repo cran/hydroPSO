@@ -14,26 +14,27 @@ Latin-Hypercube One-factor-At-a-Time
 This function implements the Latin-Hypercube One-factor-At-a-Time procedure developed by van Griensven et al., (2006) for sensitivity analysis of model parameters 
 }
 \usage{
-lhoat(fn="hydromod", lower=-Inf, upper=Inf, control=list(),
+lhoat(fn="hydromod", ..., lower=-Inf, upper=Inf, control=list(),
       model.FUN=NULL, model.FUN.args=list() )
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{fn}{
-character, name of a valid R function to be analysed or the character value \sQuote{hydromod}. \cr
+function or character with the name of a valid R function to be analysed. The character value \sQuote{hydromod} is used to specify that an R-external model code (i.e., an executable file that needs to be run from the system console) will be analised instead of an R function \cr
 -) When \code{fn!='hydromod'}, the first argument of \code{fn} has to be a vector of parameters over which the analysis is going to take place. It should return a scalar result. When \code{fn!='hydromod'} the algorithm uses the value(s) returned by \code{fn} as both model output and its corresponding goodness-of-fit measure \cr
 -) When \code{fn=='hydromod'} the algorithm will analyse the model defined by \code{model.FUN} and \code{model.args}, which are used to extract the values simulated by the model and to compute its corresponding goodness-of-fit measure
 }
-%%\item{\dots}{
-%%further arguments to be passed to \code{fn}
-%%}
+\item{\dots}{
+OPTIONAL. Only used when \code{fn!='hydromod'}. \cr
+further arguments to be passed to \code{fn}.
+}
   \item{lower}{
-numeric, lower boundary for each parameter \cr
-Note for \code{\link[stats]{optim}} users: in \kbd{hydroPSO} the length of \code{lower} and \code{upper} are used to defined the dimension of the solution space
+numeric, lower boundary for each parameter. If \code{lower} is a named object, the names of each element on it are used as names of each parameter \cr
+Note for \code{\link[stats]{optim}} users: in \kbd{hydroPSO} the length of \code{lower} and \code{upper} are used to define the dimension of the solution space
 }
   \item{upper}{
-numeric, upper boundary for each parameter \cr
-Note for \code{\link[stats]{optim}} users: in \kbd{hydroPSO} the length of \code{lower} and \code{upper} are used to defined the dimension of the solution space
+numeric, upper boundary for each parameter. If \code{upper} is a named object, the names of each element on it are used as names of each parameter. However, if \code{lower} is also a named object, the names in \code{lower} have priority over those in \code{upper}  \cr
+Note for \code{\link[stats]{optim}} users: in \kbd{hydroPSO} the length of \code{lower} and \code{upper} are used to define the dimension of the solution space
 }
   \item{control}{
 a list of control parameters. See \sQuote{Details}
@@ -53,7 +54,7 @@ The \code{control} argument is a list that can supply any of the following compo
   \describe{  
       
   \item{N}{
-numeric, number of strata to be used for sampling the range, as provided in \code{params.ranges}, for each parameter
+numeric, number of strata to be used for sampling the range of each parameter, as provided in \code{params.ranges}
 }
   \item{f}{
 numeric, fraction of the parameter's range by which each single parameter of the initial LHS is changed within the Morris OAT design
@@ -72,6 +73,10 @@ character, name of the file storing the desired range of variation of each param
 OPTIONAL. Used only when \code{write2disk=TRUE} \cr
 numeric, number of significant digits used for writing the outputs in scientific notation
 }
+ \item{normalise}{
+logical, indicates whether the parameter values have to be normalised to the [0,1] interval during the sesnsitivity analysis or not \cr
+It is recommended to use this option when the search space is not an hypercube. By default \code{normalise=FALSE}
+}
   \item{gof.name}{
 character, ONLY used for identifying the goodness-of-fit of each model run and writing it to the \kbd{LH_OAT-gof.txt} output file
 }
@@ -84,6 +89,26 @@ logical, indicates if the output files will be written to the disk
   \item{verbose}{
 logical, if TRUE progress messages are printed
 }
+  \item{REPORT}{
+OPTIONAL. Used only when \code{verbose=TRUE} \cr
+The frequency of report messages printed to the screen. Default to every 100 parameter sets
+} 
+  \item{parallel}{
+character, indicates how to parallelise \sQuote{lhoat} (to be precise, only the evaluation of the objective function \code{fn} is parallelised). Valid values are: \cr
+-)\kbd{none}: no parallelisation is made (this is the default value)\cr
+-)\kbd{multicore}: parallel computations for machines with multiple cores or CPUs. The evaluation of the objective function \code{fn} is done with the \code{\link[parallel]{mclapply}} function of the \pkg{parallel} package. It requires POSIX-compliant OS (essentially anything but Windows) \cr
+-)\kbd{parallel}: parallel computations for network clusters or machines with multiple cores or CPUs. A \sQuote{FORK} cluster is created with the \code{\link[parallel]{makeForkCluster}} function.  When \code{fn.name="hydromod"} the evaluation of the objective function \code{fn} is done with the \code{\link[parallel]{clusterApply}} function of the \pkg{parallel} package. When \code{fn.name!="hydromod"} the evaluation of the objective function \code{fn} is done with the \code{\link[parallel]{parRapply}} function of the \pkg{parallel} package.\cr
+-)\kbd{parallelWin}: parallel computations for network clusters or machines with multiple cores or CPUs (this is the only parallel implementation that works on Windows machines). A \sQuote{PSOCK} cluster is created with the \code{\link[parallel]{makeCluster}} function. When \code{fn.name="hydromod"} the evaluation of the objective function \code{fn} is done with the \code{\link[parallel]{clusterApply}} function of the \pkg{parallel} package. When \code{fn.name!="hydromod"} the evaluation of the objective function \code{fn} is done with the \code{\link[parallel]{parRapply}} function of the \pkg{parallel} package. 
+} 
+  \item{par.nnodes}{
+OPTIONAL. Used only when \code{parallel!='none'} \cr
+numeric, indicates the number of cores/CPUs to be used in the local multi-core machine, or the number of nodes to be used in the network cluster. \cr
+By default \code{par.nnodes} is set to the amount of cores detected by the function \code{detectCores()} (\pkg{multicore} or \pkg{parallel} package)
+} 
+  \item{par.pkgs}{
+OPTIONAL. Used only when \code{parallel='parallelWin'} \cr
+list of package names (as characters) that need to be loaded on each node for allowing the objective function \code{fn} to be evaluated
+} 
 %%  \item{\dots}{
 %%     ~~Describe \code{\dots} here~~
 %%}
@@ -92,7 +117,7 @@ logical, if TRUE progress messages are printed
 \value{
 A list of two elements: \cr 
 \item{ParameterSets}{a matrix with all the parameter sets used in the LH-OAT}
-\item{Ranking}{a dataframe with a ranking, parameter id, and relative importance indicator for each parameter, sorted in decreasing order of importance}
+\item{Ranking}{a dataframe with four columns sorted in decreasing order of importance (from the most sentitive parameter to the least sensitive one): i) numeric ranking; ii) parameter ID; iii) relative importance indicator, and iv) a normalised relative importance for each parameter (the sum of all the values in the \kbd{RelativeImportance.Norm} field must be 1.) }
 }
 \references{
 \cite{A. van Griensven, T. Meixner, S. Grunwald, T. Bishop, M. Diluzio, R. Srinivasan, A global sensitivity analysis tool for the parameters of multi-variable catchment models, Journal of Hydrology, Volume 324, Issues 1-4, 15 June 2006, Pages 10-23, DOI: 10.1016/j.jhydrol.2005.09.008.}
@@ -124,14 +149,21 @@ nparam <- 3
 # 1.2) defining the model
 linear <- function(x) x[1] + x[2] + x[3]
 
+# Parameter ranges
+lower <- c(0.5, 1.5, 4.5)
+upper <- c(1.5, 4.5, 13.5)
+
+# Given names to the parameters
+names(lower) <- c("a","b","c")
+
 # 1.3) Running the LH-OAT sensitivity analysis for the 'linear' test function
 #      The model is linear and since x[3] has the largest mean value, it should
 #      be the most important factor. 
 set.seed(123) 
 lhoat(
       fn=linear, 
-      lower=c(0.5, 1.5, 4.5), 
-      upper=c(1.5, 4.5, 13.5),
+      lower=lower, 
+      upper=upper,
       control=list(N=100, f=0.1, write2disk=FALSE, verbose=FALSE)      
       )
 

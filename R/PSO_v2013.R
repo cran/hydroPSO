@@ -1272,7 +1272,7 @@ Random.Topology.Generation <- function(npart, K,
 ################################################################################
 ### Started: 21-Jun-2011                                                     ###
 ### Updates: 28-Jun-2011                                                     ###
-###          19-Jun-2012 ; 03-Jul-2012 ; 09-Jul-2012 ; 04-Dec-2012                                      ###
+###          19-Jun-2012 ; 03-Jul-2012 ; 09-Jul-2012 ; 04-Dec-2012           ###
 ################################################################################
 hydromod.eval <- function(part, Particles, iter, npart, maxit, 
                           REPORT, verbose, digits, 
@@ -1333,7 +1333,7 @@ hydromod.eval <- function(part, Particles, iter, npart, maxit,
 #          17-Sep-2012 ; 23-Sep-2012 ; 15-Oct-2012 ; 25-Oct-2012 ; 28-Oct-2012 #
 #          08-Nov-2012 ; 26-Nov-2012 ; 27-Nov-2012 ; 28-Nov-2012 ; 29-Nov-2012 #
 #          19-Dec-2012                                                         #
-#          07-May-2013 ; 10-May-2013 ; 28-May-2013                             #
+#          07-May-2013 ; 10-May-2013 ; 28-May-2013 ; 29-May-2013               #
 ################################################################################
 # 'lower'           : minimum possible value for each parameter
 # 'upper'           : maximum possible value for each parameter
@@ -3055,7 +3055,7 @@ hydroPSO <- function(
       writeLines(c("Regroupings       :", nregroup), PSOparam.TextFile, sep="  ")
       writeLines("", PSOparam.TextFile) 
       writeLines("================================================================================", PSOparam.TextFile) 
-      writeLines(c("Ending Sys.time()       :", date()), PSOparam.TextFile, sep="  ")
+      writeLines(c("Ending Time       :", date()), PSOparam.TextFile, sep="  ")
       writeLines("", PSOparam.TextFile) 
       Time.Fin <- Sys.time()
       writeLines("================================================================================", PSOparam.TextFile) 
@@ -3219,7 +3219,7 @@ hydroPSO <- function(
         obs.fname <- paste(file.path(drty.out), "/", "Observations.txt", sep="") 
         sim.fname <- paste(file.path(drty.out), "/", "BestModel_out.txt", sep="") 	
 	 
-        if (is.zoo(obs)) {
+        if (is.zoo(obs)) { # zoo::is.zoo
           if (gof.Ini.exists) {
             if (subdaily.date.fmt) {
                gof.Ini <- as.POSIXct(model.FUN.args[["gof.Ini"]], format=date.fmt)
@@ -3234,8 +3234,8 @@ hydroPSO <- function(
             obs <- window(obs, end=gof.Fin)
             sim <- window(sim, end=gof.Fin)
           } # IF end
-          write.zoo(x=obs, file=obs.fname)
-          write.zoo(x=sim, file=sim.fname)
+          write.zoo(x=obs, file=obs.fname) # zoo::write.zoo
+          write.zoo(x=sim, file=sim.fname) # zoo::write.zoo
         } else {
             obs <- cbind(1:length(obs), obs)
             write.table(obs, file=obs.fname, col.names=FALSE, row.names=FALSE, sep="  ", quote=FALSE)

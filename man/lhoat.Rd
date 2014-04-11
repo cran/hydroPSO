@@ -57,7 +57,8 @@ The \code{control} argument is a list that can supply any of the following compo
 numeric, number of strata to be used for sampling the range of each parameter, as provided in \code{params.ranges}
 }
   \item{f}{
-numeric, fraction of the parameter's range by which each single parameter of the initial LHS is changed within the Morris OAT design
+numeric, fraction of the parameter's range by which each single parameter of the initial LHS is changed within the Morris OAT design. \cr
+Please be aware that \code{f} should be carefully chosen. In particular, you should take into account the value of \code{N} when choosing the value of \code{f}, otherwise parameter sets \emph{may} violate the user-defined parameter ranges.
 }
   \item{drty.in}{
 character, path to the directory storing the input files required for PSO, i.e. \sQuote{ParamRanges.txt} and \sQuote{ParamFiles.txt}
@@ -164,15 +165,16 @@ lhoat(
       fn=linear, 
       lower=lower, 
       upper=upper,
-      control=list(N=100, f=0.1, write2disk=FALSE, verbose=FALSE)      
+      control=list(N=50, f=0.015, write2disk=FALSE, verbose=FALSE)      
       )
 
 \dontrun{
 ##################################################
 # Example 2: non-linear monotonic model (n=2)    #
 ##################################################
-# A uniform distribution in the interval [0, 5] was assigned to both parameters. 
-# This makes the second factor more important than x[1]
+# A uniform distribution in the interval [0, 5] was assigned to the two 
+# parameters of the 'non.linear' function (see below). This makes the second 
+# factor (x[2]) more important than the first one (x[1]).
 
 # 2.1) defining the dimension of the parameter space
 nparam <- 2
@@ -181,7 +183,7 @@ nparam <- 2
 non.linear <- function(x) x[1] + x[2]^4
 
 # 2.3) Running the LH-OAT sensitivity analysis for the 'non.linear' test function
-#      The model is linear and since x[3] has the largest mean value, it should
+#      The model is linear and since x[2] has the largest mean value, it should
 #      be the most important factor. 
 setwd("~")
 set.seed(123) 
@@ -189,7 +191,7 @@ lhoat(
       fn=non.linear, 
       lower=rep(0, nparam), 
       upper=rep(5, nparam),
-      control=list(N=1000, f=0.1, write2disk=TRUE, verbose=FALSE)      
+      control=list(N=100, f=0.005, write2disk=TRUE, verbose=FALSE)      
       )
 
 # 2.4) reading ALL the parameter sets used in LH-OAT, and plotting dotty plots     
@@ -211,10 +213,15 @@ ishigami <- function(x, a=7, b=0.1) {
   sin(x[1]) + a*(sin(x[2]))^2 + b*(x[3]^4)*sin(x[1]) 
 }
 
-# 3.3) Running the LH-OAT sensitivity analysis for the 'lineal' test function
-#      first order analytical sensitivity indices for the Ishigami function are:
+# 3.3) Running the LH-OAT sensitivity analysis for the 'Ishigami' test function.
+#      First order analytical sensitivity indices for the Ishigami function are:
 #      S1=0.3138, S2=0.4424, S3=0.0000. Therefore, the first order sensitivity 
-#      indices indicate that factor x[2] is more important than factor x[1].
+#      indices indicate that factor x[2] is more important than factor x[1], and
+#      x[3] does not contribute to the unconditional variance of the Ishigami
+#      output.
+# NOTE: in the following example, parameters are correctly ranked, but the 
+#      normalised Relative Importance given as output ('RelativeImportance.Norm')
+#      can not be directly compared to first order sensitivity indices.
 
 setwd("~")
 set.seed(123) 
@@ -222,10 +229,10 @@ lhoat(
       fn=ishigami, 
       lower=rep(-pi, nparam), 
       upper=rep(pi, nparam),
-      control=list(N=5000, f=0.1, write2disk=TRUE, verbose=FALSE)      
+      control=list(N=5000, f=0.1, write2disk=TRUE, verbose=FALSE, normalise=TRUE)         
       )
 
-# 3.4) reading ALL the parameter sets used in LH-OAT, and plotting dotty plots     
+# 3.4) Reading ALL the parameter sets used in LH-OAT, and plotting dotty plots     
 params <- read_params(file="LH_OAT/LH_OAT-gof.txt", header=TRUE, skip=0, 
                       param.cols=2:(nparam+1), of.col=1, of.name="non.linear", 
                       ptype="dottyplot")     

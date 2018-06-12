@@ -1,5 +1,4 @@
-%% Part of the hydroPSO R package, http://www.rforge.net/hydroPSO/ ; 
-%%                                 http://cran.r-project.org/web/packages/hydroPSO
+%% Part of the hydroPSO R package, https://github.com/hzambran/hydroPSO
 %% Copyright 2011-2012 Mauricio Zambrano-Bigiarini & Rodrigo Rojas
 %% Distributed under GPL 2 or later
 
@@ -122,7 +121,7 @@ Each test function returns a single numeric value corresponding to the function 
 
 Problem Definitions and Evaluation Criteria for the CEC 2005 Special Session on Real-Parameter Optimization \cite{\url{www.lri.fr/~hansen/Tech-Report-May-30-05.pdf}}\cr
 
-Test functions for optimization needs: \cite{\url{http://www.zsd.ict.pwr.wroc.pl/files/docs/functions.pdf}}\cr
+Test functions for optimization needs: \cite{\url{http://www.robertmarks.org/Classes/ENGR5358/Papers/functions.pdf}}\cr
 
 
 \bold{Web pages}:
@@ -133,13 +132,13 @@ Benchmark Problems \cite{\url{http://www.cs.cmu.edu/afs/cs/project/jair/pub/volu
 
 Test Functions for Unconstrained Global Optimization \cite{\url{http://www-optima.amp.i.kyoto-u.ac.jp/member/student/hedar/Hedar_files/TestGO_files/Page364.htm}}
 
-Rosenbrock: \cite{\url{http://www.it.lut.fi/ip/evo/functions/node5.html}},  \cite{\url{http://en.wikipedia.org/wiki/Rosenbrock_function}}
+Rosenbrock: \cite{\url{https://www.sfu.ca/~ssurjano/rosen.html}},  \cite{\url{http://en.wikipedia.org/wiki/Rosenbrock_function}}
 
-Sphere: \cite{\url{http://www.it.lut.fi/ip/evo/functions/node2.html}}
+Sphere: \cite{\url{https://www.sfu.ca/~ssurjano/spheref.html}}
 
-Rastrigin: \cite{\url{http://www.it.lut.fi/ip/evo/functions/node6.html}}, \cite{\url{http://en.wikipedia.org/wiki/Rastrigin_function}}
+Rastrigin: \cite{\url{https://www.sfu.ca/~ssurjano/rastr.html}}, \cite{\url{http://en.wikipedia.org/wiki/Rastrigin_function}}
 
-Ackley: \cite{\url{http://www.it.lut.fi/ip/evo/functions/node14.html}}
+Ackley: \cite{\url{https://www.sfu.ca/~ssurjano/ackley.html}}
 
 Griewank: \cite{Locatelli, M. 2003. A note on the griewank test function, Journal of Global Optimization, 25 (2), 169-174, doi:10.1023/A:1021956306041}
 

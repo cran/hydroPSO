@@ -1,6 +1,6 @@
-# File PSO_v2012.R
+# File PSO_v2013.R
 # Part of the hydroPSO package, http://www.rforge.net/hydroPSO/
-# Copyright 2008-2014 Mauricio Zambrano-Bigiarini
+# Copyright 2008-2018 Mauricio Zambrano-Bigiarini
 # Distributed under GPL 2 or later
 
 ################################################################################
@@ -216,6 +216,7 @@ compute.CF <- function(c1, c2) {
 # Created: 2008                                                                #
 # Updates: Oct-2011 ; Nov-2011                                                 #
 #          19-Sep-2012 ; 20-Sep-2012 ; 28-Oct-2012 ; 31-Oct-2012               #
+#          09-May-2016                                                         #
 ################################################################################
 compute.veloc <- function(x, v, w, c1, c2, CF, Pbest, part.index, gbest, 
                           topology, method, MinMax, neighs.index, 
@@ -283,7 +284,7 @@ compute.veloc <- function(x, v, w, c1, c2, CF, Pbest, part.index, gbest,
               
                
                    } else if ( method=="wfips" ) {
-            
+                       
                        neighs.index <- neighs.index[!is.na(neighs.index)] # only for topology=='random' 
                        N    <- length(neighs.index)              
                        X    <- matrix(rep(x,N), nrow=N, byrow=TRUE)
@@ -292,8 +293,8 @@ compute.veloc <- function(x, v, w, c1, c2, CF, Pbest, part.index, gbest,
                        phi  <- c1 + c2
                        r    <- runif(N, min=0, max=phi)
                        if(MinMax == "min") {
-                         wght <- (1/lpbest.fit)/sum(1/lpbest.fit)
-                       } else wght <- lpbest.fit/sum(lpbest.fit) 
+                         wght <- (1/pfit)/sum(1/pfit)
+                       } else wght <- pfit/sum(pfit) 
                    
                        vn  <-  CF * ( w*v + (1/N) * colSums( wght*r*(P-X) ) )	
                          
@@ -1334,6 +1335,8 @@ hydromod.eval <- function(part, Particles, iter, npart, maxit,
 #          19-Dec-2012                                                         #
 #          07-May-2013 ; 10-May-2013 ; 28-May-2013 ; 29-May-2013               #
 #          07-Feb-2014 ; 09-Abr-2014                                           #
+#          29-Jan-2016 ; 09-May-2016                                           #
+#          10-Jun-2018                                                         #
 ################################################################################
 # 'lower'           : minimum possible value for each parameter
 # 'upper'           : maximum possible value for each parameter
@@ -1975,7 +1978,7 @@ hydroPSO <- function(
       
            fn1 <- function(i, x) fn(x[i,])
 
-           require(parallel)           
+           #require(parallel)           
            nnodes.pc <- parallel::detectCores()
            if (verbose) message("[ Number of cores/nodes detected: ", nnodes.pc, " ]")
            
@@ -1998,12 +2001,12 @@ hydroPSO <- function(
                
            if (parallel=="parallel") {
                ifelse(write2disk, 
-                      cl <- makeForkCluster(nnodes = par.nnodes, outfile=logfile.fname),
-                      cl <- makeForkCluster(nnodes = par.nnodes) )         
+                      cl <- parallel::makeForkCluster(nnodes = par.nnodes, outfile=logfile.fname),
+                      cl <- parallel::makeForkCluster(nnodes = par.nnodes) )         
            } else if (parallel=="parallelWin") {      
                ifelse(write2disk,
-                   cl <- makeCluster(par.nnodes, outfile=logfile.fname),
-                   cl <- makeCluster(par.nnodes) )
+                   cl <- parallel::makeCluster(par.nnodes, outfile=logfile.fname),
+                   cl <- parallel::makeCluster(par.nnodes) )
                pckgFn <- function(packages) {
                  for(i in packages) library(i, character.only = TRUE)
                } # 'packFn' END
@@ -2063,10 +2066,10 @@ hydroPSO <- function(
     X <- InitializateX(npart=npart, x.MinMax=X.Boundaries, x.ini.type=Xini.type)
     V <- InitializateV(npart=npart, x.MinMax=X.Boundaries, v.ini.type=Vini.type, 
                        Xini=X)
-    V <- t(apply(V, MARGIN=1, FUN=velocity.boundary.treatment, vmax=Vmax))
+    V <- matrix( apply(V, MARGIN=1, FUN=velocity.boundary.treatment, vmax=Vmax), nrow=npart,byrow=TRUE)
 
     if (!missing(par)) {
-      if (!any(is.na(par)) && all(par>=lower) && all(par<=upper)) { 
+      if (!any(is.na(par)) && all(t(par)>=lower) && all(t(par)<=upper)) { 
 	if (class(par)=="numeric") {
 	  X[1,] <- par 
 	} else if ( (class(par)=="matrix") | (class(par)=="data.frame") ) {
@@ -2787,7 +2790,7 @@ hydroPSO <- function(
 				localBest.pos=LocalBest.pos[j],            # topology=c("random", "lbest")
 				ngbest.fit=ngbest.fit,                     # topology="ipso"
 				ngbest=X.best.part[ngbest.pos, ],          # topology="ipso"
-				lpbest.fit= pbest.fit[X.neighbours[j, ]]   # method="wfips"
+				lpbest.fit= pbest.fit                      # method="wfips"
 				)  
         
 	V[j,] <- velocity.boundary.treatment(v= V[j,], vmax=Vmax)

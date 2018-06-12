@@ -1,7 +1,7 @@
 # File read.param.R
 # Part of the hydroPSO R package, http://www.rforge.net/hydroPSO/ ; 
 #                                 http://cran.r-project.org/web/packages/hydroPSO
-# Copyright 2008-2011 Mauricio Zambrano-Bigiarini
+# Copyright 2008-2018 Mauricio Zambrano-Bigiarini
 # Distributed under GPL 2 or later
 
 ################################################################################
@@ -11,7 +11,8 @@
 ################################################################################
 # Started: 28-June-2010,                                                       #
 # Updates: 16-May-2011  ; 24-Jun-2011 ; 01-Jul-2011 ; 01-Sep-2011              #
-#          19-Jan-2012  ; 02-Feb-2012 ; 15-Feb-2012 ; 07-Mar-2012 ; 23-Mar-2012#        
+#          19-Jan-2012  ; 02-Feb-2012 ; 15-Feb-2012 ; 07-Mar-2012 ; 23-Mar-2012#    
+#          10-Jun-2018                                                         #    
 ################################################################################
 # This function makes dotty plots of different parameter values vs the 
 # corresponding objective function value (usually for plotting the 
@@ -78,21 +79,21 @@ plot_params.default <- function(params,
   # Setting 'ptype' 
   ptype <- match.arg(ptype)  
   
-  # Checking 'vioplot' 
-  if (ptype=="vioplot") {  
-     if ( !require(vioplot) ) {
-        warning("Package 'vioplot' is not installed =>  ptype='boxplot'")
-        ptype <- "boxplot"
-     } # IF end 
-  } # IF end
-         
-  # Checking 'pairs' 
-  if (ptype=="pairs") {  
-     if ( !require(hydroTSM) ) {
-        warning("Package 'hydroTSM' is not installed =>  ptype='histogram'")
-        ptype <- "histogram"
-     } # IF end 
-  } # IF end
+#  # Checking 'vioplot' 
+#  if (ptype=="vioplot") {  
+#     if ( !require(vioplot) ) {
+#        warning("Package 'vioplot' is not installed =>  ptype='boxplot'")
+#        ptype <- "boxplot"
+#     } # IF end 
+#  } # IF end
+#         
+#  # Checking 'pairs' 
+#  if (ptype=="pairs") {  
+#     if ( !require(hydroTSM) ) {
+#        warning("Package 'hydroTSM' is not installed =>  ptype='histogram'")
+#        ptype <- "histogram"
+#     } # IF end 
+#  } # IF end
   
   # Checking 'beh.thr'
   if ( !is.na(beh.thr) ) {
@@ -244,8 +245,7 @@ plot_params.default <- function(params,
           } else if (ptype == "vioplot") {
           
                if ( length(unique(params[,i])) != 1 ) {
-                 require(vioplot)
-                 vioplot(params[,i], col="lightblue", names=colnames(params)[i])
+                 vioplot::vioplot(params[,i], col="lightblue", names=colnames(params)[i])
                
                  # If the user provided 'MinMax': 
                  if ( !is.null(MinMax) ) abline(h=params[best.index,i], col=MinMax.colour)
@@ -263,8 +263,7 @@ plot_params.default <- function(params,
         colnames(params)[ncol(params)] <- of.name
         } # IF end
              
-      library(hydroTSM)
-      hydropairs(params)             
+      hydroTSM::hydropairs(params)             
      }  # ELSE end   
   
   

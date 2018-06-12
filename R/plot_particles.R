@@ -1,7 +1,7 @@
 # File plot_particles.R
 # Part of the hydroPSO R package, http://www.rforge.net/hydroPSO/ ; 
 #                                 http://cran.r-project.org/web/packages/hydroPSO
-# Copyright 2011-2012 Mauricio Zambrano-Bigiarini & Rodrigo Rojas
+# Copyright 2011-2018 Mauricio Zambrano-Bigiarini & Rodrigo Rojas
 # Distributed under GPL 2 or later
 
 ################################################################################
@@ -11,6 +11,7 @@
 # Updates: 02-Feb-2012 ; 17-Feb-2012 ; 09-Mar-2012 ; 12-Nov-2012 ; 19-Nov-2012 #   
 #          27-Feb-2013                                                         #   
 #          09-Abr-2014                                                         #  
+#          10-Jun-2018                                                         #
 ################################################################################
 # This function plots the contents of the 'Particles.txt' ouput file of        #
 # hydroPSO, with the position and fitness value of all the particles in the    #
@@ -229,8 +230,7 @@ plot_particles <- function(#####################################################
             
    #############################################################################
    # 4) Plotting Correlation Matrix of Parameter Values (with hydroTSM::hydropairs)  
-   if (do.pairs) 
-     if ( require(hydroTSM) ) {
+   if (do.pairs) {
        msg <- "[ Plotting correlation matrix for parameter values"
        if (do.png) msg <- paste(msg, " into '", basename(pairs.png.fname), sep="")
        msg <- paste(msg, "' ... ]", sep="")
@@ -269,7 +269,7 @@ plot_particles <- function(#####################################################
                    png.res=png.res,
                    png.fname=pairs.png.fname  
                    )     
-     } else warning("'hydroTSM' package is missing: Correlation among parameters was not plotted !")
+   } # IF end
    
    #############################################################################
    # 5) Empirical CDFs of Parameter Values

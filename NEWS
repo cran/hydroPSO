@@ -1,5 +1,31 @@
 NEWS for hydroPSO
 --------------------------
+0.4-0	10-Jun-2018
+        o Repository management moved from SVN to GIT, first using rforge and finally using Github.
+        o Main page in Github list articles reporting the use of hydroPSO until May 31th 2018.
+        o Package tested against R version 3.5.0 (2018-04-23) -- "Joy in Playing", following the request made by CRAN.
+        o TRAVIS CI used to test source code against stable and development R versions.
+        o zenodo used to manage DOI of different versions of the package
+
+
+0.3-4-6	09-May-2016
+        o New field 'Additional_repositories' in the DESCRIPTION file, following the instructions given by CRAN.
+        o Minor modification of the 'Description' field, following the instructions given by CRAN (avoiding redundancies).
+        o CITATION file modified to allow working without package installed (following CRAN request). 
+        o DOI field added to CITATION file.
+        o CRAN website removed from URL field in DESCRIPTION file (following CRAN request).
+        o 'read_out'    : observations (in 'obs' or 'Observations.txt') are allowed to be of class (Date", "POSIXct", "POSIXt"), not only 'Date' as before this enhancement.
+        o 'plot_results': observations (obtained with 'read_results.txt') are allowed to be of class (Date", "POSIXct", "POSIXt"), not only 'Date' as before this enhancement.
+        o 'hydroPSO'    : -) Issue #4. hydroPSO is now able to optimise 1D functions, both R-defined functions or R-external model codes (Thanks to Azza Ahmed and @cjzilverberg!). 
+                          -) Issue #3. hydroPSO now is able to correctly apply the 'method="wfips"' when 'topology="random"' (Thanks to @drknexus !). 
+                                       For a 2-dimensioanl problem wit 40 particles, it raised an error similar to:
+                                         "Error in is.data.frame(x) : 
+                                          dims [product 2] do not match the length of object [40]"
+                          -) minor bug fixed (Thanks to Aaron Jones !). 
+                             This bug might have triggered when the user provided more than 1 parameter set as a first guess for the optimal solution (i.e, a matrix/data.frame), 
+                             using the 'par' optional argument. Some of the parameters provided by the user might have been incorrectly compared against the 'lower' and 'upper' values. 
+
+
 0.3-4	11-Abr-2014
         o Package tested against R version 3.1.0 (2014-04-10) -- "Spring Dance".
         o 'lhoat'              : -) when 'normalise=TRUE' the 'ParameterSets' output is now given in the real range of each parameter, and not in the 

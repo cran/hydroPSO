@@ -1,7 +1,7 @@
 # File hydromod.R
 # Part of the hydroPSO R package, http://www.rforge.net/hydroPSO/ ; 
 #                                 http://cran.r-project.org/web/packages/hydroPSO
-# Copyright 2010-2013 Mauricio Zambrano-Bigiarini & Rodrigo Rojas
+# Copyright 2010-2018 Mauricio Zambrano-Bigiarini & Rodrigo Rojas
 # Distributed under GPL 2 or later
 
 ################################################################################
@@ -24,14 +24,15 @@
 #          13-Jan-2012 ; 16-Jan-2012 ; 23-Jan-2012 ; 02-May-2012 ; 12-Oct-2012 #
 #          15-Oct-2012 ; 22-Nov-2012                                           #
 #          29-May-2013                                                         #
+#          10-Jun-2018                                                         #
 ################################################################################
 hydromod <- function(
                      param.values,                 # Numeric vector with the paramter values that will be used in the input files of the hydrological model
                      param.files="ParamFiles.txt", # Character, with the name of the file (with full path) that stores the name of the files that have to be modified for each parameter 
                      model.drty=getwd(),           # Character, with the path of the directory that stores the exe file of the hydrological model and ALL the input files required for the simulation
                      exe.fname,
-                     stdout=FALSE,                 # a logical (not NA) indicating whether messages written to ‘stdout’ should be sent or not. See '?system2'
-                     stderr="",                    # a logical (not NA) indicating whether messages written to ‘stderr’ should be sent or not. See '?system2'
+                     stdout=FALSE,                 # a logical (not NA) indicating whether messages written to 'stdout' should be sent or not. See '?system2'
+                     stderr="",                    # a logical (not NA) indicating whether messages written to 'stderr' should be sent or not. See '?system2'
                      verbose= FALSE,               # logical, indicating if progress messages have to be printed during the simulations. If \code{verbose=TRUE}, the following messages will appear: i)parameter values for each particle; (ii) model execution; iii) extraction of simulated values; and iv) computation of the goodness-of-fit measure.
                                           
                      ###############################
@@ -229,8 +230,7 @@ hydromod <- function(
     png(filename=png.fname, width= width, height= height, res=res)
 
     if ( !is.na( match("hydroGOF", installed.packages()[,"Package"] ) ) ) {
-      library(hydroGOF)
-      ggof(sim, obs, main=main, cex.main=1.5, leg.cex=leg.cex, tick.tstep=tick.tstep, lab.tstep=lab.tstep, lab.fmt=lab.fmt)
+      hydroGOF::ggof(sim, obs, main=main, cex.main=1.5, leg.cex=leg.cex, tick.tstep=tick.tstep, lab.tstep=lab.tstep, lab.fmt=lab.fmt)
     } else plot_out(sim=sim, obs=obs, ptype="corr")
 
     dev.off()

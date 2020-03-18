@@ -1,12 +1,55 @@
 NEWS for hydroPSO
 --------------------------
+0.5-0	17-March-2020
+        o Package tested against R 4.0.0 (unstable) (2020-02-27 r77862) -- "Unsuffered Consequences", following an imperative request made by CRAN.
+        o Added full compatibility with (hydrological/environmental) models implemented as R functions (e.g., TUWmodel, GR4, etc) 
+        o New vignette showing how to calibrate TUWmodel with hydroPSO.
+        o New vignette showing how to calibrate TUWmodel with GR4J.
+        o New dataset 'Trancura9414001' with daily data on P, Temp, PET, and Q from 1979 to 2016.
+        o A reference to the 2012 vignette showing how to use hydroPSO to calibrate SWAT2005 and MODFLOW 2005 is now included in the package.
+        o 'hydroPSO'      : -) the 'fn' argument now accepts the character 'hydromodInR' to indicate that hydroPSO will be used to optimise an (hydrological/environmental) model implemented as R function. 
+                            -) When 'fn="hydromodInR"', the argument 'model.FUN' must provide and R function used to run the model and evaluate the goodness-of-fit corresponding to a given parameter set.
+                              This function MUST fulfill the following requirements:
+                              1) It first agument must be named 'param.values', which represents the numer values of the parameters to be optimised
+                              2) One of its arguments must be named 'obs', and represents the observed values whcih will be compared against the simulated values ('sim')
+                              3) It must return a list object with -at least- the following elements:
+                                 3.1) "GoF": the goodness-of-fit of obtained when the hydrological model is run with 'param.values' as parameters
+                                 3.2) "sim": the model output obtained when the hydrological model is run with 'param.values' as parameters. 'sim' MUST have the same object class (and dimensions) thn the observed vlues provided by the user in 'obs'.
+                              4) It is a good practice, even if is not a reuirement, to identify all the arguments used by the evaluation of the model, in order to have them correctly identified in the 'hydroPSO_logfile.txt' output file.
+                            -) testing if 'parallel' package is installed is now optmised, replacing 'if ( !is.na( match("parallel", installed.packages()[,"Package"] ) ) )' by '( length(find.package("parallel", quiet=TRUE)) == 0 )'
+                            -) testing if 'lhs' package is installed is now optmised, replacing 'if ( !is.na( match("lhs", installed.packages()[,"Package"] ) ) )' by '( length(find.package("lhs", quiet=TRUE)) == 0 )'
+                            -) broken link in documtnation related to swarm topolies was fixed by using Lynn et al. (2018)
+                            -) if 'multicore' option is selected, it is changed automatically to 'parallel' (because the 'multicore' pacakge was merged with the base 'parallel' pacakge.
+        o 'verification'  : -) now it is fully compatible with R-based models and allows parallelisation
+                            -) simulations for each parameter sets are now returned in the new 'sims' lement of the output object.
+                            -) new parameter '...' ensure compatibility with any R function already calibrated with hydroPSO.
+        o 'quant2ecdf'    : Detection of 'matrix' and 'data.frame' class for its first argument is now made with the 'is' function, in order to be compatible with R 4.0.0
+        o 'read_out'      : -) If 'MinMax' is not provided, it is read from the 'PSO_logfile.txt' file
+                            -) Much faster now: it uses data.table:fread instead of 'read.table'
+        o 'read_results'  : -) If 'MinMax' is not provided, it is read from the 'PSO_logfile.txt' file
+                            -) Much faster now: thanks to the improvement in 'read_out'
+        o 'plot_results'  : -) If 'MinMax' is not provided, it is read from the 'PSO_logfile.txt' file
+                            -) Much faster now: thanks to the improvement in 'read_out'
+                          : testing if 'zoo' package is installed is now optmised, replacing 'if ( !is.na( match("zoo", installed.packages()[,"Package"] ) ) )' by '( length(find.package("zoo", quiet=TRUE)) == 0 )'
+        o 'plot_2parOF'   : testing if 'scatter3d' package is installed is now optmised, replacing 'if ( !is.na( match("scatter3d", installed.packages()[,"Package"] ) ) )' by '( length(find.package("scatter3d", quiet=TRUE)) == 0 )'
+        o 'hydromod'      : testing if 'hydroGOF' package is installed is now optmised, replacing 'if ( !is.na( match("hydroGOF", installed.packages()[,"Package"] ) ) )' by '( length(find.package("hydroGOF", quiet=TRUE)) == 0 )'
+        o 'plot_out'      : testing if 'hydroGOF' package is installed is now optmised, replacing 'if ( !is.na( match("hydroGOF", installed.packages()[,"Package"] ) ) )' by '( length(find.package("hydroGOF", quiet=TRUE)) == 0 )'
+        o DESCRIPTION     : -) 'knitr' and 'rmarkdown' were added to allow building the vignettes
+                            -) ORCHID reference was added for M. Zambrano-Bigiarini
+                            -) Added dependency on R >= 3.5.0 because serialized objects in serialize/load version 3 cannot be read in older versions of R ( 'hydroPSO/data/Trancura9414001.RData')
+                            -) 'data.table' was added tom 'Imports' field 
+        o NAMESPACE       : 'fread' is now imported from the 'data.table' package
+
+0.4-1	12-Jun-2018
+        o 'Keywords' field removed after CRAN request.
+        o DOI added just after zenodo created it, based on Github realease 0.4-0
+
 0.4-0	10-Jun-2018
         o Repository management moved from SVN to GIT, first using rforge and finally using Github.
         o Main page in Github list articles reporting the use of hydroPSO until May 31th 2018.
         o Package tested against R version 3.5.0 (2018-04-23) -- "Joy in Playing", following the request made by CRAN.
         o TRAVIS CI used to test source code against stable and development R versions.
         o zenodo used to manage DOI of different versions of the package
-
 
 0.3-4-6	09-May-2016
         o New field 'Additional_repositories' in the DESCRIPTION file, following the instructions given by CRAN.

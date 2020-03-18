@@ -1,6 +1,7 @@
 %% File hydroPSO.Rd
-%% Part of the hydroPSO R package, http://www.rforge.net/hydroPSO/ ; 
+%% Part of the hydroPSO R package, https://github.com/hzambran/hydroPSO
 %%                                 http://cran.r-project.org/web/packages/hydroPSO
+%%                                 http://www.rforge.net/hydroPSO/
 %% Copyright 2011-2018 Mauricio Zambrano-Bigiarini & Rodrigo Rojas
 %% Distributed under GPL 2 or later
 
@@ -31,7 +32,7 @@ function or character with the name of a valid R function to be optimised (minim
 -) When \code{fn=='hydromod'} the algorithm will optimise the model defined by \code{model.FUN} and \code{model.args}, which are used to extract the values simulated by the model and to compute its corresponding goodness-of-fit measure
 }
 \item{\dots}{
-OPTIONAL. Only used when \code{fn!='hydromod'}. \cr
+OPTIONAL. Only used when \code{fn!='hydromod' & fn!='hydromodInR'}. \cr
 further arguments to be passed to \code{fn}.
 }
   \item{method}{
@@ -334,7 +335,7 @@ The frequency of report messages printed to the screen. Default to every 100 ite
   \item{parallel}{
 character, indicates how to parallelise \sQuote{hydroPSO} (to be precise, only the evaluation of the objective function \code{fn} is parallelised). Valid values are: \cr
 -)\kbd{none}: no parallelisation is made (this is the default value)\cr
--)\kbd{multicore}: parallel computations for machines with multiple cores or CPUs. The evaluation of the objective function \code{fn} is done with the \code{\link[parallel]{mclapply}} function of the \pkg{parallel} package. It requires POSIX-compliant OS (essentially anything but Windows) \cr
+-)\kbd{multicore}: DEPRECATED!, since \code{multicore} package is not in CRAN anymore. Originally it was thought to carry out parallel computations for machines with multiple cores or CPUs. The evaluation of the objective function \code{fn} is done with the \code{\link[parallel]{mclapply}} function of the \pkg{parallel} package. It requires POSIX-compliant OS (essentially anything but Windows) \cr
 -)\kbd{parallel}: parallel computations for network clusters or machines with multiple cores or CPUs. A \sQuote{FORK} cluster is created with the \code{\link[parallel]{makeForkCluster}} function.  When \code{fn.name="hydromod"} the evaluation of the objective function \code{fn} is done with the \code{\link[parallel]{clusterApply}} function of the \pkg{parallel} package. When \code{fn.name!="hydromod"} the evaluation of the objective function \code{fn} is done with the \code{\link[parallel]{parRapply}} function of the \pkg{parallel} package.\cr
 -)\kbd{parallelWin}: parallel computations for network clusters or machines with multiple cores or CPUs (this is the only parallel implementation that works on Windows machines). A \sQuote{PSOCK} cluster is created with the \code{\link[parallel]{makeCluster}} function. When \code{fn.name="hydromod"} the evaluation of the objective function \code{fn} is done with the \code{\link[parallel]{clusterApply}} function of the \pkg{parallel} package. When \code{fn.name!="hydromod"} the evaluation of the objective function \code{fn} is done with the \code{\link[parallel]{parRapply}} function of the \pkg{parallel} package. 
 } 
@@ -376,7 +377,7 @@ integer code where \code{0} indicates that the algorithm terminated by reaching 
 
 \cite{Abdelaziz, Ramadan, and Mauricio Zambrano-Bigiarini (2014), Particle Swarm Optimization for inverse modeling of solute transport in fractured gneiss aquifer. Journal of Contaminant Hydrology, 164, 285-298. doi:10.1016/j.jconhyd.2014.06.003}
 
-\cite{Clerc, M. Standard Particle Swarm. 2012. (SPSO-2007, SPSO-2011). \url{clerc.maurice.free.fr/pso/SPSO_descriptions.pdf}. Last visited [24-Sep-2012]}
+\cite{Clerc, M. Standard Particle Swarm. 2012. (SPSO-2007, SPSO-2011). \url{http://clerc.maurice.free.fr/pso/SPSO_descriptions.pdf}. Last visited [24-Sep-2012]}
 
 \cite{Clerc, M. From Theory to Practice in Particle Swarm Optimization, Handbook of Swarm Intelligence, Springer Berlin Heidelberg, 3-36, Eds: Panigrahi, Bijaya Ketan, Shi, Yuhui, Lim, Meng-Hiot, Hiot, Lim Meng, and Ong, Yew Soon, 2010, doi: 10.1007/978-3-642-17390-5_1}
 
@@ -424,7 +425,7 @@ integer code where \code{0} indicates that the algorithm terminated by reaching 
 
 \cite{Zhao, B.  An Improved Particle Swarm Optimization Algorithm for Global Numerical Optimization. In Proceedings of International Conference on Computational Science (1). 2006, 657-664}
 
-\cite{Neighborhood Topologies, \url{http://tracer.uc3m.es/tws/pso/neighborhood.html}. Last visited [15-Feb-2012] }
+\cite{Lynn, N., Ali, M. Z., & Suganthan, P. N. (2018). Population topologies for particle swarm optimization and differential evolution. Swarm and evolutionary computation, 39, 24-35. doi: 10.1016/j.swevo.2017.11.002}
 }
 \author{
 Mauricio Zambrano-Bigiarini, \email{mzb.devel@gmail.com}

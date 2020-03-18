@@ -1,7 +1,8 @@
 # File read_out.R
-# Part of the hydroPSO R package, http://www.rforge.net/hydroPSO/ ; 
+# Part of the hydroPSO R package, https://github.com/hzambran/hydroPSO
 #                                 http://cran.r-project.org/web/packages/hydroPSO
-# Copyright 2011-2015 Mauricio Zambrano-Bigiarini & Rodrigo Rojas
+#                                 http://www.rforge.net/hydroPSO/
+# Copyright 2010-2020 Mauricio Zambrano-Bigiarini & Rodrigo Rojas
 # Distributed under GPL 2 or later
 
 ################################################################################
@@ -27,6 +28,7 @@
 #          29-May-2013                                                         #  
 #          09-Abr-2014                                                         # 
 #          30-Jul-2015                                                         # 
+#          28-Feb-2020 ; 07-Mar-2020 ; 12-Mar-2020                             #
 ################################################################################
 # Columns in 'of_out' are:
 # Iter         : integer, with the iteration number for each row of the file
@@ -71,6 +73,17 @@ read_out <- function(file="Model_out.txt",
   if ( !file.exists(file) )
      stop( "Invalid argument value: The file '", basename(file), "' doesn't exist !!")
 
+  # Checking 'MinMax'
+  if ( !is.null(MinMax) ) {
+     if ( !(MinMax %in% c("min", "max")) )
+        stop("Invalid argument: 'MinMax' must be in c('min', 'max')")
+  } else { # MinMax was not provided: it is read from the output 'PSO_logfile.txt' file
+           # It assumes that 'PSO_logfile.txt' is located in the same directory than the 'Model_out.txt' file
+      PSOlog <- read.table(file="PSO_logfile.txt", skip=9, nrows=1)
+      MinMax <- as.character(PSOlog[1, 3])
+      if (verbose) message("[ 'MinMax' was read from the 'PSO_logfile.txt' file, and set to '", MinMax, "' ]")
+    } # ELSE end
+
   # Checking 'beh.thr'
   if ( !is.na(beh.thr) ) {
      if ( is.null(MinMax) ) {
@@ -78,12 +91,6 @@ read_out <- function(file="Model_out.txt",
      } # IF end
   } # IF end
   
-  # Checking 'MinMax'
-  if ( !is.null(MinMax) ) {
-     if ( !(MinMax %in% c("min", "max")) )
-        stop("Invalid argument: 'MinMax' must be in c('min', 'max')")
-  } # IF end
-
   # Checking 'plot' and 'MinMax'
   valid.types <- c("corr", "ts") 
   if (plot &  (length(which(!is.na(match(ptype, valid.types )))) <= 0) ) {
@@ -103,8 +110,8 @@ read_out <- function(file="Model_out.txt",
   if (!missing(nsim)) {
     cnames <- paste("sim", 1:nsim, sep="") 
     cnames <- c("Iter", "Part", "GoF", cnames)      
-    sim  <- read.table(file=file, header=FALSE, skip=1, fill=TRUE,  col.names=cnames)
-  } else sim  <- read.table(file=file, header=FALSE, skip=1, fill=TRUE)
+    sim  <- data.table::fread(file=file, header=FALSE, skip=1, fill=TRUE,  col.names=cnames, data.table=FALSE)
+  } else sim  <- data.table::fread(file=file, header=FALSE, skip=1, fill=TRUE, data.table=FALSE)
 
   # Amount of total model outputs / parameter sets 
   nouts <- nrow(sim)
@@ -121,7 +128,7 @@ read_out <- function(file="Model_out.txt",
   
   # Computing the number of values in each model output
   lnsim  <- NCOL(outputs)
-  if (verbose) message( "[ Number of model outputs for each parameter set: ", lnsim, " ]" )    
+  if (verbose) message( "[ Number of model outputs for each parameter set ('nsim'): ", lnsim, " ]" )    
   
   # giving more meaningful names to the model outputs
   if (lnsim > 1)
@@ -182,7 +189,7 @@ read_out <- function(file="Model_out.txt",
   if (missing(obs)) {
     fname <- "Observations.txt"
     if (file.exists(fname)) {
-      if ( !is.na( match("zoo", installed.packages()[,"Package"] ) ) ) {
+       if  ( length(find.package("zoo", quiet=TRUE)) != 0 ) {
         obs   <- read.zoo(fname) # zoo::read.zoo
         dates <- time(obs)
         # If the observed data do not have dates, they are transformed into numeric

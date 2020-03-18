@@ -1,6 +1,8 @@
 # File PSO_v2013.R
-# Part of the hydroPSO package, http://www.rforge.net/hydroPSO/
-# Copyright 2008-2018 Mauricio Zambrano-Bigiarini
+# Part of the hydroPSO R package, https://github.com/hzambran/hydroPSO
+#                                 http://cran.r-project.org/web/packages/hydroPSO
+#                                 http://www.rforge.net/hydroPSO/
+# Copyright 2010-2020 Mauricio Zambrano-Bigiarini
 # Distributed under GPL 2 or later
 
 ################################################################################
@@ -1301,7 +1303,7 @@ hydromod.eval <- function(part, Particles, iter, npart, maxit,
   out[[2]] <- hydromod.out[["sim"]]
   
   # meaningful names
-  names(out)[1:nelements] <- c("GoF", "model.out") 
+  names(out)[1:nelements] <- c("GoF", "sim") 
 
   if ( iter/REPORT == floor(iter/REPORT) ) {
     if (verbose) message("================================================================================")
@@ -1337,6 +1339,8 @@ hydromod.eval <- function(part, Particles, iter, npart, maxit,
 #          07-Feb-2014 ; 09-Abr-2014                                           #
 #          29-Jan-2016 ; 09-May-2016                                           #
 #          10-Jun-2018                                                         #
+#          27-Feb-2020 ; 28-Feb-2020 ; 06-Mar-2020 ; 09-Mar-2020 ; 12-Mar-2020 #
+#          13-Mar-2020                                                         #
 ################################################################################
 # 'lower'           : minimum possible value for each parameter
 # 'upper'           : maximum possible value for each parameter
@@ -1579,8 +1583,13 @@ hydroPSO <- function(
     } else 
         if ( is.character(fn) | is.function(fn) )  {
           if (is.character(fn)) {
-            fn.name <- fn
-	    fn      <- match.fun(fn)
+            if (fn=="hydromod") {
+              fn.name <- fn
+	      fn      <- match.fun(fn)
+            } else if (fn=="hydromodInR") {
+                fn.name <- fn
+	              fn      <- match.fun(model.FUN)
+              } else stop("Invalid argument: valid character values for 'fn' are only: c('hydromod', 'hydromodInR')")
 	  } else if (is.function(fn)) {
 	      fn.name <- as.character(substitute(fn))
 	      fn      <- fn
@@ -1749,7 +1758,7 @@ hydroPSO <- function(
 
     ############################################################################  
     # 1)                              Initialisation                           #
-    ###################################################$$$$#####################  
+    ############################################################################  
     if (verbose) message("                                                                                ")          
     if (verbose) message("================================================================================")
     if (verbose) message("[                                Initialising  ...                             ]")
@@ -1793,9 +1802,30 @@ hydroPSO <- function(
       } else {
           model.FUN.argsDefaults <- formals(model.FUN)
           model.FUN.args         <- modifyList(model.FUN.argsDefaults, model.FUN.args) 
-        } # ELSe end
+        } # ELSE end
 
-    } # IF end    
+    } # IF end   
+
+    if (fn.name=="hydromodInR") {
+      if ( is.null(model.FUN) ) {
+        stop( "'model.FUN' has to be defined !" )
+      } else  {
+          model.FUN.name <- as.character(substitute(model.FUN))
+          model.FUN      <- match.fun(model.FUN)   
+        } # ELSE end
+
+      if (!("param.values" %in% names(formals(model.FUN)) ))
+        stop("[ Invalid argument: 'param.values' must be the first argument of the 'model.FUN' function! ]")
+
+      if (!("obs" %in% names(formals(model.FUN)) )) 
+        stop("[ Invalid argument: 'obs' must be an argument of the 'model.FUN' function! ]")
+   
+      model.FUN.argsDefaults <- formals(model.FUN)
+      if ( length(model.FUN.args) > 0 ) {
+        model.FUN.args <- modifyList(model.FUN.argsDefaults, model.FUN.args) 
+      } else model.FUN.args <- model.FUN.argsDefaults
+
+    } # IF end   
 
     # checking 'X.Boundaries' 
     if (fn.name=="hydromod") {
@@ -1854,14 +1884,14 @@ hydroPSO <- function(
       } else abstol <- -Inf
 
     if (Xini.type=="lhs") { 
-	if ( is.na( match("lhs", installed.packages()[,"Package"] ) ) ) {
+	if ( length(find.package("lhs", quiet=TRUE)) == 0 ) {
 	    warning("[ Package 'lhs' is not installed =>  Xini.type='random' ]")
 	    Xini.type <- "random"
 	}  # IF end  
     } # IF end
 
     if (Vini.type %in% c("lhs2011", "lhs2007")) { 
-	if ( is.na( match("lhs", installed.packages()[,"Package"] ) ) ) {
+	if ( length(find.package("lhs", quiet=TRUE)) == 0 ) {
 	    warning("[ Package 'lhs' is not installed =>  Vini.type='random2011' ]")
 	    Vini.type <- "random2011"
 	}  # IF end  
@@ -1958,65 +1988,70 @@ hydroPSO <- function(
     } # IF end
 
     Lmax <- (X.Boundaries[ ,2] - X.Boundaries[ ,1])        
-    ########################################################################
-    ##                                parallel                             #
-    ########################################################################
+    ############################################################################
+    ##                                parallel                                 #
+    ############################################################################
     if (parallel != "none") {
     
-      if ( ( (parallel=="multicore") | (parallel=="parallel") ) & 
-         ( (R.version$os=="mingw32") | (R.version$os=="mingw64") ) )
-         stop("[ Fork clusters are not supported on Windows =>  'parallel' can not be set to '", parallel, "' ]")
-    
-      ifelse(parallel=="parallelWin", parallel.pkg <- "parallel",  parallel.pkg <- parallel)                
-      if ( is.na( match(parallel.pkg, installed.packages()[,"Package"] ) ) ) {
-              warning("[ Package '", parallel.pkg, "' is not installed =>  parallel='none' ]")
-              parallel <- "none"
-      }  else { 
-      
-           if (verbose) message("                               ")
-           if (verbose) message("[ Parallel initialization ... ]")
-      
-           fn1 <- function(i, x) fn(x[i,])
+    #  if ( ( (parallel=="multicore") | (parallel=="parallel") ) & 
+    #     ( (R.version$os=="mingw32") | (R.version$os=="mingw64") ) )
+    #     stop("[ Fork clusters are not supported on Windows =>  'parallel' can not be set to '", parallel, "' ]")
 
-           #require(parallel)           
-           nnodes.pc <- parallel::detectCores()
-           if (verbose) message("[ Number of cores/nodes detected: ", nnodes.pc, " ]")
+    if (parallel=="multicore") {
+       warning("[ Package 'parallel' is not available anymore in CRAN. It was changed to 'parallel='parallel' ]")
+       parallel <- "parallel"
+    } # IF end
+    
+    ifelse(parallel=="parallelWin", parallel.pkg <- "parallel",  parallel.pkg <- parallel) 
+    if ( length(find.package(parallel.pkg, quiet=TRUE)) == 0 ) {               
+      warning("[ Package '", parallel.pkg, "' is not installed =>  parallel='none' ]")
+      parallel <- "none"
+    }  else { 
+      
+         if (verbose) message("                               ")
+         if (verbose) message("[ Parallel initialization ... ]")
+      
+         fn1 <- function(i, x) fn(x[i,])
+
+         #require(parallel)           
+         nnodes.pc <- parallel::detectCores()
+         if (verbose) message("[ Number of cores/nodes detected: ", nnodes.pc, " ]")
            
-           if ( (parallel=="parallel") | (parallel=="parallelWin") ) {             
-              logfile.fname <- paste(file.path(drty.out), "/", "parallel_logfile.txt", sep="") 
-              if (file.exists(logfile.fname)) file.remove(logfile.fname)
-           } # IF end
+         if ( (parallel=="parallel") | (parallel=="parallelWin") ) {             
+            logfile.fname <- paste(file.path(drty.out), "/", "parallel_logfile.txt", sep="") 
+            if (file.exists(logfile.fname)) file.remove(logfile.fname)
+         } # IF end
              
-           if (is.na(par.nnodes)) {
+         if (is.na(par.nnodes)) {
+           par.nnodes <- nnodes.pc
+         } else if (par.nnodes > nnodes.pc) {
+             warning("[ 'nnodes' > number of detected cores (", par.nnodes, ">", nnodes.pc, ") =>  par.nnodes=", nnodes.pc, " ] !",)
              par.nnodes <- nnodes.pc
-           } else if (par.nnodes > nnodes.pc) {
-                 warning("[ 'nnodes' > number of detected cores (", par.nnodes, ">", nnodes.pc, ") =>  par.nnodes=", nnodes.pc, " ] !",)
-                 par.nnodes <- nnodes.pc
-             } # ELSE end
-           if (par.nnodes > npart) {
-             warning("[ 'par.nnodes' > npart (", par.nnodes, ">", npart, ") =>  par.nnodes=", npart, " ] !")
-             par.nnodes <- npart
-           } # ELSE end  
-           if (verbose) message("[ Number of cores/nodes used    : ", par.nnodes, " ]")                 
+           } # ELSE end
+         if (par.nnodes > npart) {
+           warning("[ 'par.nnodes' > npart (", par.nnodes, ">", npart, ") =>  par.nnodes=", npart, " ] !")
+           par.nnodes <- npart
+         } # ELSE end  
+         if (verbose) message("[ Number of cores/nodes used    : ", par.nnodes, " ]")                 
                
-           if (parallel=="parallel") {
-               ifelse(write2disk, 
-                      cl <- parallel::makeForkCluster(nnodes = par.nnodes, outfile=logfile.fname),
-                      cl <- parallel::makeForkCluster(nnodes = par.nnodes) )         
-           } else if (parallel=="parallelWin") {      
-               ifelse(write2disk,
-                   cl <- parallel::makeCluster(par.nnodes, outfile=logfile.fname),
-                   cl <- parallel::makeCluster(par.nnodes) )
-               pckgFn <- function(packages) {
-                 for(i in packages) library(i, character.only = TRUE)
-               } # 'packFn' END
-               parallel::clusterCall(cl, pckgFn, par.pkgs)
-               parallel::clusterExport(cl, ls.str(mode="function",envir=.GlobalEnv) )
-               if (fn.name=="hydromod") {
-                 parallel::clusterExport(cl, model.FUN.args$out.FUN)
-                 parallel::clusterExport(cl, model.FUN.args$gof.FUN)
-               } # IF end                   
-             } # ELSE end                   
+         if (parallel=="parallel") {
+             ifelse(write2disk, 
+                    cl <- parallel::makeForkCluster(nnodes = par.nnodes, outfile=logfile.fname),
+                    cl <- parallel::makeForkCluster(nnodes = par.nnodes) )         
+         } else if (parallel=="parallelWin") {      
+             ifelse(write2disk,
+                    cl <- parallel::makeCluster(par.nnodes, outfile=logfile.fname),
+                    cl <- parallel::makeCluster(par.nnodes) )
+             pckgFn <- function(packages) {
+               for(i in packages) library(i, character.only = TRUE)
+             } # 'packFn' END
+             parallel::clusterCall(cl, pckgFn, par.pkgs)
+             parallel::clusterExport(cl, ls.str(mode="function",envir=.GlobalEnv) )
+             if (fn.name=="hydromod") {
+               parallel::clusterExport(cl, model.FUN.args$out.FUN)
+               parallel::clusterExport(cl, model.FUN.args$gof.FUN)
+             } # IF end                   
+           } # ELSE end                   
                             
            if (fn.name=="hydromod") {
              if (!("model.drty" %in% names(formals(hydromod)) )) {
@@ -2053,11 +2088,11 @@ hydroPSO <- function(
          } # ELSE end  
   
     }  # IF end    
-    ########################################################################     
+    ############################################################################     
 
-    ########################################################################
-    # 2) Initialization of Swarm location and velocities                   #
-    ########################################################################
+    ############################################################################
+    # 2) Initialization of Swarm location and velocities                       #
+    ############################################################################
 
     X.Boundaries.current <- X.Boundaries
 
@@ -2353,7 +2388,7 @@ hydroPSO <- function(
 	close(Xmax.Text.file)      
       } # IF end  
 
-      if (fn.name=="hydromod") {
+      if ( (fn.name=="hydromod") | (fn.name=="hydromodInR" ) ) {
 	##############################################################################
 	# 2)                           Writing Info File
 	##############################################################################  
@@ -2381,29 +2416,31 @@ hydroPSO <- function(
 	writeLines(c("Starting Time          :", date()), hydroPSOparam.TextFile, sep="  ")
 	writeLines("", hydroPSOparam.TextFile) 
 	writeLines("================================================================================", hydroPSOparam.TextFile) 
-	writeLines(c("PSO Input Directory    :", drty.in), hydroPSOparam.TextFile, sep=" ") 
+	if (fn.name=="hydromod") {
+          writeLines(c("PSO Input Directory    :", drty.in), hydroPSOparam.TextFile, sep=" ") 
+	  writeLines("", hydroPSOparam.TextFile) 
+	  writeLines(c("PSO Output Directory   :", drty.out), hydroPSOparam.TextFile, sep=" ") 
+	  writeLines("", hydroPSOparam.TextFile) 
+	  writeLines(c("Parameter Ranges       :", basename(param.ranges)), hydroPSOparam.TextFile, sep=" ") 
+	  writeLines("", hydroPSOparam.TextFile) 
+        } # IF end  
+        try(writeLines(c("hydromod function      :", model.FUN.name), hydroPSOparam.TextFile, sep=" ") , TRUE)
 	writeLines("", hydroPSOparam.TextFile) 
-	writeLines(c("PSO Output Directory   :", drty.out), hydroPSOparam.TextFile, sep=" ") 
-	writeLines("", hydroPSOparam.TextFile) 
-	writeLines(c("Parameter Ranges       :", basename(param.ranges)), hydroPSOparam.TextFile, sep=" ") 
-	writeLines("", hydroPSOparam.TextFile) 
-	try(writeLines(c("hydromod function      :", model.FUN.name), hydroPSOparam.TextFile, sep=" ") , TRUE)
-	writeLines("", hydroPSOparam.TextFile) 
-	writeLines(c("hydromod args          :"), hydroPSOparam.TextFile, sep=" ") 
+	if ( (fn.name=="hydromod") | (fn.name=="hydromodInR") ) {
+        writeLines(c("hydromod args          :"), hydroPSOparam.TextFile, sep=" ") 
 	writeLines("", hydroPSOparam.TextFile) 
 	for ( i in 1:length(model.FUN.args) ) {
-
-	 arg.name  <- names(model.FUN.args)[i]
-	 arg.name  <- format(paste("  ", arg.name, sep=""), width=22, justify="left" )
-	 arg.value <- ""
-	 arg.value <- try(as.character( as.character(model.FUN.args[i])), TRUE)
-
-	 writeLines(c(arg.name, ":", arg.value), hydroPSOparam.TextFile, sep=" ") 
-	 writeLines("", hydroPSOparam.TextFile) 
-
-	} # FOR end
-	# Closing the text file
-	close(hydroPSOparam.TextFile) 
+	  arg.name1  <- names(model.FUN.args)[i]
+	  arg.name  <- format(paste("  ", arg.name1, sep=""), width=22, justify="left" )
+	  arg.value <- ""
+          if (arg.name1 != "param.values") 
+            arg.value <- try( as.character( eval( model.FUN.args[[i]]) ), TRUE)
+	  writeLines(c(arg.name, ":", arg.value), hydroPSOparam.TextFile, sep=" ") 
+	  writeLines("", hydroPSOparam.TextFile) 
+        } # FOR end
+      } # IF end
+      # Closing the text file
+      close(hydroPSOparam.TextFile) 
 
       } # IF 'fn.name' END
 
@@ -2505,17 +2542,15 @@ hydroPSO <- function(
         } # ELSE end
 
       # 3.a) Evaluate the particles fitness
-      if ( fn.name != "hydromod" ) {
+      if ( (fn.name != "hydromod") & (fn.name != "hydromodInR") ) {
          
          # Evaluating an R Function 
          if (parallel=="none") {
-           GoF <- apply(Xn, fn, MARGIN=1, ...)
          } else             
-            if (parallel=="multicore") {
-              GoF <- unlist(parallel::mclapply(1:npart, FUN=fn1, x=Xn, ..., mc.cores=par.nnodes, mc.silent=TRUE)) 
-            } else if ( (parallel=="parallel") | (parallel=="parallelWin") ) {
+            if ( (parallel=="parallel") | (parallel=="parallelWin") ) {
                 GoF <- parallel::parRapply(cl= cl, x=Xn, FUN=fn, ...)
-              } # ELSE end
+            } else if (parallel=="multicore")
+                GoF <- unlist(parallel::mclapply(1:npart, FUN=fn1, x=Xn, ..., mc.cores=par.nnodes, mc.silent=TRUE)) 
 	 
          Xt.fitness[iter, 1:npart] <- GoF
          ModelOut[1:npart]         <- GoF  ###
@@ -2523,7 +2558,7 @@ hydroPSO <- function(
 	 nfn     <- nfn + npart
 	 nfn.eff <- nfn.eff + npart
 
-      } else { # fn.name = "hydromod"       
+      } else if (fn.name == "hydromod") { # fn.name = "hydromod"       
 
 	     if ("verbose" %in% names(model.FUN.args)) {
 	       verbose.FUN <- model.FUN.args[["verbose"]] 
@@ -2606,12 +2641,31 @@ hydroPSO <- function(
              for (part in 1:npart){         
                    GoF                    <- out[[part]][["GoF"]] 
                    Xt.fitness[iter, part] <- GoF            
-                   ModelOut[[part]]       <- out[[part]][["model.out"]]  
+                   ModelOut[[part]]       <- out[[part]][["sim"]]  
                    nfn <- nfn + 1 
                    if(is.finite(GoF)) nfn.eff <- nfn.eff + 1                     
              } #FOR part end               
 
-	} # ELSE end
+	} else if (fn.name == "hydromodInR") {
+         
+           # Evaluating an R-based model
+           if (parallel=="none") {
+             out <- apply(Xn, model.FUN, MARGIN=1, ...)
+           } else             
+               if ( (parallel=="parallel") | (parallel=="parallelWin") ) {
+                   out <- parallel::parRapply(cl= cl, x=Xn, FUN=model.FUN, ...)
+               } else if (parallel=="multicore")
+                   out <- unlist(parallel::mclapply(1:npart, FUN=fn1, x=Xn, ..., mc.cores=par.nnodes, mc.silent=TRUE)) 
+	 
+            for (part in 1:npart){         
+              GoF                    <- out[[part]][["GoF"]] 
+              Xt.fitness[iter, part] <- GoF            
+              ModelOut[[part]]       <- out[[part]][["sim"]]  
+              nfn <- nfn + 1 
+              if(is.finite(GoF)) nfn.eff <- nfn.eff + 1                     
+             } #FOR part end  
+         
+          } # ELSE IF end
 
       if ( best.update == "sync" ) {
 	    tmp <- sync.update.pgbests(x=X, 
@@ -3129,7 +3183,7 @@ hydroPSO <- function(
       fname <- paste(file.path(drty.out), "/", "LocalBest.txt", sep="") 	
       write.table(format(LocalBest.fit, scientific=TRUE, digits=digits), file=fname, col.names=TRUE, row.names=FALSE, sep="  ", quote=FALSE)
 
-      if (fn.name=="hydromod") {
+      if ( (fn.name=="hydromod") | (fn.name=="hydromodInR") ) {
 
 	hydroPSOparam.TextFile <- file(hydroPSOparam.fname, "a")    
 	
@@ -3209,8 +3263,9 @@ hydroPSO <- function(
     } # IF end
 
     ############################################################################  
-    if (fn.name=="hydromod") {
+    if  ( (fn.name=="hydromod") | (fn.name=="hydromodInR") ) {
 
+     
       if (verbose) message("                                                                                ")  
       if (verbose) message("                                    |                                           ")  
       if (verbose) message("================================================================================")
@@ -3219,11 +3274,12 @@ hydroPSO <- function(
       if (verbose) message("                                    |                                           ")  
       if (verbose) message("                                                                                ")  
 
+      
       model.FUN.args <- modifyList(model.FUN.args, 
-				   list(param.values=out[["par"]])
-				   ) 
-      hydromod.out   <- do.call(model.FUN, as.list(model.FUN.args))              
-
+                                   list(param.values=out[["par"]])
+                                  ) 
+      hydromod.out   <- do.call(model.FUN, as.list(model.FUN.args))       
+      
       # Writing observations and best model output
       if ("obs" %in% names(model.FUN.args)) {      
          if (date.fmt.exists) {
@@ -3236,8 +3292,8 @@ hydroPSO <- function(
                  ) { subdaily.date.fmt <- TRUE
                    } else subdaily.date.fmt <- FALSE
                      
-        obs <- model.FUN.args[["obs"]]
-        sim <- hydromod.out[["sim"]]  
+        obs <- eval( model.FUN.args[["obs"]] )
+        sim <- eval( hydromod.out[["sim"]] )
         
         obs.fname <- paste(file.path(drty.out), "/", "Observations.txt", sep="") 
         sim.fname <- paste(file.path(drty.out), "/", "BestModel_out.txt", sep="") 	
@@ -3257,12 +3313,16 @@ hydroPSO <- function(
             obs <- window(obs, end=gof.Fin)
             sim <- window(sim, end=gof.Fin)
           } # IF end
+          if (verbose) message("[ Writing Observations.txt (zoo) ... ]")
           write.zoo(x=obs, file=obs.fname) # zoo::write.zoo
+          if (verbose) message("[ Writing BestModel_out.txt ... ]")
           write.zoo(x=sim, file=sim.fname) # zoo::write.zoo
         } else {
+            if (verbose) message("[ Writing Observations.txt (numeric) ... ]")
             obs <- cbind(1:length(obs), obs)
             write.table(obs, file=obs.fname, col.names=FALSE, row.names=FALSE, sep="  ", quote=FALSE)
             
+            if (verbose) message("[ Writing BestModel_out.txt ... ]")
             sim <- cbind(1:length(sim), sim)
             write.table(obs, file=sim.fname, col.names=FALSE, row.names=FALSE, sep="  ", quote=FALSE)
           } # ELSE end

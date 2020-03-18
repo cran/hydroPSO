@@ -1,5 +1,6 @@
 importFrom("grDevices", colorRampPalette, dev.new, dev.off, png, rainbow)
 importFrom("graphics", Axis, abline, axis, boxplot, grid, hist, legend, lines, mtext, par, plot)
+importFrom("methods", "is")
 importFrom("stats", approxfun, cor, fivenum, lm, median, quantile, rnorm, runif, time, window)
 importFrom("utils", read.table, write.table, installed.packages, ls.str, modifyList, sessionInfo, setTxtProgressBar, txtProgressBar)
 
@@ -14,6 +15,7 @@ importFrom("hydroTSM", hydroplot, hydropairs, dip, mip, yip, vector2zoo)
 importFrom("vioplot", vioplot)
 importFrom("hydroGOF", ggof)
 importFrom("scatterplot3d", scatterplot3d)
+importFrom("data.table", fread)
 #exportPattern("^[^\\.]")
 export(hydroPSO,
        lhoat,

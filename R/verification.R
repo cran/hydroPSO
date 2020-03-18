@@ -1,7 +1,8 @@
 ## File verification.R
-## Part of the hydroPSO R package, http://www.rforge.net/hydroPSO/ ; 
-##                                 http://cran.r-project.org/web/packages/hydroPSO
-## Copyright 2011-2014 Mauricio Zambrano-Bigiarini & Rodrigo Rojas
+# Part of the hydroPSO R package, https://github.com/hzambran/hydroPSO
+#                                 http://cran.r-project.org/web/packages/hydroPSO
+#                                 http://www.rforge.net/hydroPSO/
+## Copyright 2011-2020 Mauricio Zambrano-Bigiarini & Rodrigo Rojas
 ## Distributed under GPL 2 or later
 
 ################################################################################
@@ -24,10 +25,12 @@
 # Started : 18-Jan-2011 at JRC Ispra                                           #
 # Updates : 12-May-2011 ; 13-Feb-2012  ; 23-Feb-2012                           #
 #           09-Abr-2014                                                        #
+#           09-Mar-2020 ; 12-Mar-2020 ; 15-Mar-2020                            #
 ################################################################################
 verification <- function(
                          fn="hydromod",  
                          par,
+                         ...,
                          control=list(),
                          model.FUN=NULL,
                          model.FUN.args=list()                                
@@ -40,16 +43,26 @@ verification <- function(
         
   # Checking the name of the objective function
   if (missing(fn)) {
-     stop("Missing argument: 'fn' must be provided")
-  } else {
-      fn.name <- fn
-      fn      <- match.fun(fn)
-    } # ELSE end       
+    stop("Missing argument: 'fn' must be provided")
+  } else 
+      if ( is.character(fn) | is.function(fn) )  {
+        if (is.character(fn)) {
+          if (fn=="hydromod") {
+            fn.name <- fn
+	    fn      <- match.fun(fn)
+          } else if (fn=="hydromodInR") {
+              fn.name <- fn
+              fn      <- match.fun(model.FUN)
+            } else stop("Invalid argument: valid character values for 'fn' are only: c('hydromod', 'hydromodInR')")
+	} else if (is.function(fn)) {
+	    fn.name <- as.character(substitute(fn))
+	    fn      <- fn
+	  } # ELSE end
+      } else stop("Missing argument: 'class(fn)' must be in c('function', 'character')")      
         
   # Checking 'par'
   if (missing(par)) stop("Missing argument: 'par' must be provided")
-        
-          
+                 
   ########################################################################        
   con <- list(
                 
@@ -58,15 +71,21 @@ verification <- function(
           digits=7,
                 
           gof.name="GoF",          # Character, only used for identifying the goodness-of-fit of each model run
-          MinMax="max",            # Character, indicating if PSO have to find a minimum or a maximum for the objective function. \cr
+          MinMax=c("min", "max"),            # Character, indicating if PSO have to find a minimum or a maximum for the objective function. \cr
                                    # Valid values are in: \code{c('min', 'max')} \cr
           do.plots=FALSE,
           write2disk=TRUE,
-          verbose= TRUE            # logical, indicating if progress messages have to be printed
+          verbose= TRUE,           # logical, indicating if progress messages have to be printed
+          
+          parallel=c("none", "multicore", "parallel", "parallelWin"),
+          par.nnodes=NA,
+	  par.pkgs= c()
              )
-              
+             
+  MinMax        <- match.arg(control[["MinMax"]], con[["MinMax"]])     
+  parallel      <- match.arg(control[["parallel"]], con[["parallel"]])    
+
   nmsC <- names(con)
- 
   con[(namc <- names(control))] <- control
   
   if (length(noNms <- namc[!namc %in% nmsC])) 
@@ -81,6 +100,8 @@ verification <- function(
   do.plots       <- as.logical(con[["do.plots"]])  
   write2disk     <- as.logical(con[["write2disk"]])
   verbose        <- as.logical(con[["verbose"]])
+  par.nnodes     <- con[["par.nnodes"]]
+  par.pkgs       <- con[["par.pkgs"]] 
         
   ########################################################################
   ##################### Dummy checkings ##################################
@@ -96,15 +117,37 @@ verification <- function(
         model.FUN      <- match.fun(model.FUN)
       } # ELSE end
   
-    # checking 'out.FUN.args'
+    # checking 'model.FUN.args'
     if ( length(model.FUN.args)==0 ) {
       warning( "'model.FUN.args' is an empty list. Are you sure your model doesn't have any argument(s) ?" )
     } else {
-        # Modifying the arguments of the hydrological model
+        # Assigning the numeric values provided by the user in ' model.FUN.args' 
+        # to the arguments of the hydrological model
         model.FUN.argsDefaults <- formals(model.FUN)
         model.FUN.args         <- modifyList(model.FUN.argsDefaults, model.FUN.args) 
       } # ELSe end
              
+  } # IF end 
+
+  if (fn.name=="hydromodInR") {
+    if ( is.null(model.FUN) ) {
+      stop( "'model.FUN' has to be defined !" )
+    } else  {
+        model.FUN.name <- as.character(substitute(model.FUN))
+        model.FUN      <- match.fun(model.FUN)   
+      } # ELSE end
+
+    if (!("param.values" %in% names(formals(model.FUN)) ))
+      stop("[ Invalid argument: 'param.values' must be the first argument of the 'model.FUN' function! ]")
+
+    if (!("obs" %in% names(formals(model.FUN)) )) 
+      stop("[ Invalid argument: 'obs' must be an argument of the 'model.FUN' function! ]")
+   
+    model.FUN.argsDefaults <- formals(model.FUN)
+    if ( length(model.FUN.args) > 0 ) {
+      model.FUN.args <- modifyList(model.FUN.argsDefaults, model.FUN.args) 
+    } else model.FUN.args <- model.FUN.argsDefaults
+
   } # IF end 
           
   if ( is.matrix(par) | is.data.frame(par) ) {
@@ -133,11 +176,10 @@ verification <- function(
 
     } else stop("Invalid argument: 'class(par)' must be in c('numeric', 'matrix', 'data.frame')")
    
-  if (verbose) message( "[ Number of parameter set read: ", nparamsets, " ]" )   
-  if (verbose) message( "[ Number of parameters read   : ", nparamsets, " ]" )  
-  if (verbose) message( "[ Parameter names             : ", paste(Parameter.names, collapse = ", "), " ]")
+  if (verbose) message( "[ Number of parameter sets read: ", nparamsets, "            ]" )   
+  if (verbose) message( "[ Parameter names              : ", paste(Parameter.names, collapse = ", "), " ]")
   
-  # If the user only provided a single parameter set, it is transofrmed into a matrix
+  # If the user only provided a single parameter set, it is transformed into matrix
   if (nparamsets==1) par <- matrix(par, nrow=1)
         
   # Adding the parent path of 'drty.out', if it doesn't have it
@@ -191,6 +233,14 @@ verification <- function(
     writeLines("", InfoTXT.TextFile) # writing a blank line with a carriage return
     writeLines(c("verbose              :", verbose), InfoTXT.TextFile, sep=" ") 
     writeLines("", InfoTXT.TextFile) # writing a blank line with a carriage return
+    writeLines(c("parallel          :", parallel), InfoTXT.TextFile, sep=" ")  
+    writeLines("", InfoTXT.TextFile)  
+    if (parallel!="none") {
+      writeLines(c("par.nnodes        :", par.nnodes), InfoTXT.TextFile, sep=" ") 
+      writeLines("", InfoTXT.TextFile)
+      writeLines(c("par.pkgs          :", par.pkgs), InfoTXT.TextFile, sep=" ") 
+      writeLines("", InfoTXT.TextFile)     
+    } # IF end
     if (fn.name=="hydromod") {
       try(writeLines(c("hydromod function    :", model.FUN.name), InfoTXT.TextFile, sep=" ") , TRUE)
       writeLines("", InfoTXT.TextFile) # writing a blank line with a carriage return
@@ -233,50 +283,185 @@ verification <- function(
   close(Params.Text.file)          
         
 
+  ############################################################################
+  ##                                parallel                                 #
+  ############################################################################
+  if (parallel != "none") {
+    
+  #  if ( ( (parallel=="multicore") | (parallel=="parallel") ) & 
+  #     ( (R.version$os=="mingw32") | (R.version$os=="mingw64") ) )
+  #     stop("[ Fork clusters are not supported on Windows =>  'parallel' can not be set to '", parallel, "' ]")
+
+  if (parallel=="multicore") {
+     warning("[ Package 'parallel' is not available anymore in CRAN. It was changed to 'parallel='parallel' ]")
+     parallel <- "parallel"
+  } # IF end
+    
+  ifelse(parallel=="parallelWin", parallel.pkg <- "parallel",  parallel.pkg <- parallel) 
+  if ( length(find.package(parallel.pkg, quiet=TRUE)) == 0 ) {               
+    warning("[ Package '", parallel.pkg, "' is not installed =>  parallel='none' ]")
+    parallel <- "none"
+  }  else { 
+      
+       if (verbose) message("                                                 ")
+       if (verbose) message("[ Parallel initialization ...                   ]")
+      
+       fn1 <- function(i, x) fn(x[i,])
+
+       #require(parallel)           
+       nnodes.pc <- parallel::detectCores()
+       if (verbose) message("[ Number of cores/nodes detected: ", nnodes.pc, "             ]")
+           
+       if ( (parallel=="parallel") | (parallel=="parallelWin") ) {             
+          logfile.fname <- paste(file.path(drty.out), "/", "parallel_logfile.txt", sep="") 
+          if (file.exists(logfile.fname)) file.remove(logfile.fname)
+       } # IF end
+             
+       if (is.na(par.nnodes)) {
+         par.nnodes <- nnodes.pc
+       } else if (par.nnodes > nnodes.pc) {
+           warning("[ 'nnodes' > number of detected cores (", par.nnodes, ">", nnodes.pc, ") =>  par.nnodes=", nnodes.pc, "            ] !",)
+           par.nnodes <- nnodes.pc
+         } # ELSE end
+ 
+       if (verbose) message("[ Number of cores/nodes used    : ", par.nnodes, "             ]")                 
+               
+       if (parallel=="parallel") {
+           ifelse(write2disk, 
+                  cl <- parallel::makeForkCluster(nnodes = par.nnodes, outfile=logfile.fname),
+                  cl <- parallel::makeForkCluster(nnodes = par.nnodes) )         
+       } else if (parallel=="parallelWin") {      
+           ifelse(write2disk,
+                  cl <- parallel::makeCluster(par.nnodes, outfile=logfile.fname),
+                  cl <- parallel::makeCluster(par.nnodes) )
+           pckgFn <- function(packages) {
+             for(i in packages) library(i, character.only = TRUE)
+           } # 'packFn' END
+           parallel::clusterCall(cl, pckgFn, par.pkgs)
+           parallel::clusterExport(cl, ls.str(mode="function",envir=.GlobalEnv) )
+           if (fn.name=="hydromod") {
+             parallel::clusterExport(cl, model.FUN.args$out.FUN)
+             parallel::clusterExport(cl, model.FUN.args$gof.FUN)
+           } # IF end                   
+         } # ELSE end                   
+                            
+         if (fn.name=="hydromod") {
+           if (!("model.drty" %in% names(formals(hydromod)) )) {
+              stop("[ Invalid argument: 'model.drty' has to be an argument of the 'hydromod' function! ]")
+           } else { # Copying the files in 'model.drty' as many times as the number of cores
+             
+               model.drty <- path.expand(model.FUN.args$model.drty)
+                 
+               files <- list.files(model.drty, full.names=TRUE, include.dirs=TRUE) 
+               tmp <- which(basename(files)=="parallel")
+               if (length(tmp) > 0) files <- files[-tmp]
+               parallel.drty <- paste(file.path(model.drty), "/parallel", sep="")
+
+               if (file.exists(parallel.drty)) {                      
+                 if (verbose) message("[ Removing the 'parallel' directory ... ]")    
+                 try(unlink(parallel.drty, recursive=TRUE, force=TRUE))
+               } # IF end 
+               dir.create(parallel.drty)
+
+               mc.dirs <- character(par.nnodes)
+               if (verbose) message("                                                     ")
+               for (i in 1:par.nnodes) {
+                 mc.dirs[i] <- paste(parallel.drty, "/", i, "/", sep="")
+                 dir.create(mc.dirs[i])
+                 if (verbose) message("[ Copying model input files to directory '", mc.dirs[i], "' ... ]")
+                 file.copy(from=files, to=mc.dirs[i], overwrite=TRUE, recursive=TRUE)
+               } # FOR end
+                 
+               tmp       <- ceiling(nparamsets/par.nnodes)        
+               part.dirs <- rep(mc.dirs, tmp)[1:nparamsets]  
+             } # ELSE end                 
+         } # IF end
+           
+       } # ELSE end  
+  
+  }  # IF end    
+  ############################################################################## 
+
   ##############################################################################
   #                            MAIN BODY
   ##############################################################################
   
+  # Opening the file 'Verification-ModelOut.txt' for appending
+  OFout.Text.file <- file(model.out.text.fname, "a")   
+
+  # Opening the file 'Verification-ParamValues.txt' for appending
+  Params.Text.file <- file(gof.text.fname, "a")
+
   gof.all <- numeric(nparamsets)
-  
-  for ( p in 1:nparamsets) {
-  
-    if (verbose) message("                    |                      ")
-    if (verbose) message("                    |                      ") 
-    if (verbose) message("==============================================================")
-    if (verbose) message( paste("[ Running parameter set ", 
-                                format( p, width=4, justify="left" ), 
-                                "/", nparamsets, " => ", 
-                                format( round(100*p/nparamsets,2), width=7, justify="left" ), "%",
-                                ". Starting... ]", sep="") )
-    if (verbose) message("==============================================================")
-  
-    # Opening the file 'Verification-ModelOut.txt' for appending
-    OFout.Text.file <- file(model.out.text.fname, "a")   
 
-    # Opening the file 'Verification-ParamValues.txt' for appending
-    Params.Text.file <- file(gof.text.fname, "a") 
 
-    # Getting the parameter values  
-    param.values <- as.numeric(par[p,])
+  # Evaluating an R Function
+  if ( (fn.name != "hydromod") & (fn.name != "hydromodInR") ) {          
+    if (parallel=="none") {
+      hydromod.out <- apply(par, fn, MARGIN=1, ...)
+    } else             
+        if ( (parallel=="parallel") | (parallel=="parallelWin") ) #{
+           hydromod.out <- parallel::parRapply(cl= cl, x=par, FUN=fn, ...)
+        #} else if (parallel=="multicore")
+        #    hydromod.out <- unlist(parallel::mclapply(1:npart, FUN=fn1, x=par, ..., mc.cores=par.nnodes, mc.silent=TRUE)) 
+  } # IF end
+
+  # Evaluating an R-based model
+  if (fn.name == "hydromodInR") {
+    if (verbose) message("                                                 ")
+    if (verbose) message("=================================================")
+    if (verbose) message("[ Running the model ...                         ]") 
+    if (parallel=="none") {
+      hydromod.out <- apply(par, model.FUN, MARGIN=1)
+    } else             
+        if ( (parallel=="parallel") | (parallel=="parallelWin") ) #{
+          hydromod.out <- parallel::parRapply(cl= cl, x=par, FUN=model.FUN)
+        #} else if (parallel=="multicore")
+        #  hydromod.out <- unlist(parallel::mclapply(1:npart, FUN=fn1, x=par, mc.cores=par.nnodes, mc.silent=TRUE)) )
+  } # IF end	 
+
+
+  # Evaluating a system-console-based model
+  for ( p in 1:nparamsets) {  
+
+    # Getting the parameter set
+    param.values.p <- as.numeric(par[p,])
     
-    ############################################################################
-    # 2)                       Running the hydrological model                  #
-    ############################################################################
+    ##########################################################################
+    # 2)                 Running the hydrological model                      #
+    ##########################################################################
     
     # If the user wants to create a plot with obs vs sim
     if (do.plots) {
       do.png         <- TRUE
       png.fname      <- paste(drty.out, "/ParameterSet_", p, ".png", sep="")
-      main <- paste("Parameter Set:", p, sep="")
+      main           <- paste("Parameter Set:", p, sep="")
       model.FUN.args <- modifyList(model.FUN.args, list(do.png=do.png, png.fname=png.fname, main=main)) 
     } # IF end
     
     # Model evaluation 
-    if ( fn.name == "hydromod" ) {
-      model.FUN.args <- modifyList(model.FUN.args, list(param.values=param.values)) 
+    if (fn.name == "hydromod") {
+
+      if (verbose) message("                    |                      ")
+      if (verbose) message("                    |                      ") 
+      if (verbose) message("==============================================================")
+      if (verbose) message( paste("[ Running parameter set ", 
+                                  format( p, width=4, justify="left" ), 
+                                  "/", nparamsets, " => ", 
+                                  format( round(100*p/nparamsets,2), width=7, justify="left" ), "%",
+                                  ". Starting... ]", sep="") )
+      if (verbose) message("==============================================================")
+
+      # Running the console-based model
+      model.FUN.args <- modifyList(model.FUN.args, list(param.values=param.values.p)) 
       hydromod.out   <- do.call(model.FUN, as.list(model.FUN.args)) 
-    } else hydromod.out <- do.call(fn, list(param.values))
+
+      if (verbose) message("                              |                               ")
+      if (verbose) message("                              |                               ") 
+      if (verbose) message("==============================================================")
+      if (verbose) message("[================ Verification finished ! ===================]")
+      if (verbose) message("==============================================================")
+    } # IF end
      
         
     ############################################################################
@@ -287,36 +472,32 @@ verification <- function(
     if ( fn.name == "hydromod" ) {
       sims <- as.numeric(hydromod.out[["sim"]])
       GoF  <- as.numeric(hydromod.out[["GoF"]])
-    } else {
-        sims <- as.numeric(hydromod.out)
-        GoF  <- as.numeric(hydromod.out)
-      } # ELSe end
-        
+    } else if ( fn.name == "hydromodInR" ) {
+        sims  <- hydromod.out[[p]][["sim"]]
+        GoF   <- hydromod.out[[p]][["GoF"]] 
+      } else {
+          sims <- as.numeric(hydromod.out[p])
+          GoF  <- as.numeric(hydromod.out[p])
+        } # ELSE end     
    
     gof.all[p] <- GoF
 
     # Writing to the 'Verification-ModelOut.txt' file
     suppressWarnings( tmp <- formatC(GoF, format="E", digits=digits, flag=" ") )
-    if ( fn.name != "hydromod" ) {
+    if ( (fn.name != "hydromod") & (fn.name != "hydromodInR") ) {
       writeLines(as.character(c(p, tmp, tmp)), OFout.Text.file, sep="  ") 
     } else suppressWarnings( writeLines(as.character(c(p, tmp, formatC(sims, format="E", digits=digits, flag=" ") )), OFout.Text.file, sep="  ") )
     writeLines("", OFout.Text.file) # writing a blank line with a carriage return  
     
     # Writing to the 'Verification-ParamValues.txt' file
-    suppressWarnings( writeLines(as.character(c(p, tmp, formatC(param.values, format="E", digits=digits, flag=" ") )), Params.Text.file, sep="  ") )
-    writeLines("", Params.Text.file) # writing a blank line with a carriage return
-    
-    # Closing the output text files
-    close(OFout.Text.file)
-    close(Params.Text.file) 
+    suppressWarnings( writeLines(as.character(c(p, tmp, formatC(param.values.p, format="E", digits=digits, flag=" ") )), Params.Text.file, sep="  ") )
+    writeLines("", Params.Text.file) # writing a blank line with a carriage return 
     
   } # FOR end
- 
-  if (verbose) message("                              |                               ")
-  if (verbose) message("                              |                               ") 
-  if (verbose) message("==============================================================")
-  if (verbose) message("[================ Verification finished ! ===================]")
-  if (verbose) message("==============================================================")
+
+  # Closing the output text files
+  close(OFout.Text.file)
+  close(Params.Text.file)
   
   ##############################################################################
   # 4)                    Writing Ending and Elapsed Time                      #                                 
@@ -333,17 +514,49 @@ verification <- function(
   writeLines("", InfoTXT.TextFile) # writing a blank line with a carriage return
   writeLines("================================================================================", InfoTXT.TextFile) # writing a separation line with a carriage return
   close(InfoTXT.TextFile)
+
+  ##############################################################################
+  ##                                parallel                                   #
+  ##############################################################################
+  if (parallel!="none") {
+    if ( (parallel=="parallel") | (parallel=="parallelWin") )   
+         parallel::stopCluster(cl)   
+    if (fn.name=="hydromod") {
+      if (verbose) message("                                         ")
+      if (verbose) message("[ Removing the 'parallel' directory ... ]")    
+      unlink(dirname(mc.dirs[1]), recursive=TRUE)
+    } # IF end
+         
+  } # IF end
+  ##############################################################################
+
+
   
   ##############################################################################
   # 5)                    Creating the output                                  #                                 
   ##############################################################################
+
+  if (verbose) message("=================================================")
+  if (verbose) message("[ Reading 'Verification-ModelOut.txt' file ...  ]") 
+  sims <- data.table::fread(file=model.out.text.fname, skip=1, data.table=FALSE)
+  nc   <- ncol(sims)
+  # Removing the first 2 columns in 'sims': ParameterSetNmbr, GoF
+  sims <- sims[, 3:nc]  
+  colnames(sims) <- paste0("sim", 1:(nc-2))
+  colnames(sims) <- paste0("par", 1:nparamsets)
+
+
   ifelse(MinMax=="min", best.rowindex <- which.min(gof.all),
                         best.rowindex <- which.max(gof.all)) 
 
   best.gof <- gof.all[best.rowindex]                       
   best.par <- par[best.rowindex,]
 
-  out <- list(gofs=gof.all, best.gof=best.gof, best.par=best.par )
+  out <- list(gofs=gof.all, model.values=sims, best.gof=best.gof, best.param=best.par )
+
+  if (verbose) message("=================================================")
+  if (verbose) message("[                Finished !                     ]") 
+  if (verbose) message("=================================================")
 
   return(out)
 

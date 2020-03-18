@@ -1,7 +1,8 @@
 # File plot_out.R
-# Part of the hydroPSO R package, http://www.rforge.net/hydroPSO/ ; 
+# Part of the hydroPSO R package, https://github.com/hzambran/hydroPSO
 #                                 http://cran.r-project.org/web/packages/hydroPSO
-# Copyright 2012-2018 Mauricio Zambrano-Bigiarini & Rodrigo Rojas
+#                                 http://www.rforge.net/hydroPSO/
+# Copyright 2012-2020 Mauricio Zambrano-Bigiarini & Rodrigo Rojas
 # Distributed under GPL 2 or later
 
 ################################################################################
@@ -20,6 +21,7 @@
 # Updates: 15-Feb-2012 ; 22-Feb-2012 ; 28-Jun-2012 ; 26-Sep-2012               #   
 #          21-Feb-2013                                                         #     
 #          10-Jun-2018                                                         #
+#          29-Feb-2020                                                         #
 ################################################################################
 
 plot_out <- function(sim, obs, 
@@ -85,7 +87,7 @@ plot_out <- function(sim, obs,
   
   # Checking 'hydroGOF' pacakge when ptype=="ts"
   if (ptype=="ts") {
-   if ( is.na( match("hydroGOF", installed.packages()[,"Package"] ) ) )
+   if  ( length(find.package("hydroGOF", quiet=TRUE)) == 0 ) 
      stop("Invalid argument: You don't have the 'hydroGOF' package => You can not use 'ptype='ts' !!")
   } # IF end
            

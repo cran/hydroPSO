@@ -450,10 +450,7 @@ D <- 5
 lower <- rep(-5.12, D)
 upper <- rep(5.12, D)
 
-\dontrun{
-# Setting the home directory of the user as working directory 
-setwd("~")
-   
+\donttest{
 ################################ 
 # Example 1. Basic use         #
 ################################ 
@@ -464,7 +461,10 @@ set.seed(100)
 # Basic use 1. Rastrigin function (non-linear and multi-modal with many local minima)
 # Results are not saved to the hard disk, for faster execution ('write2disk=FALSE')
 hydroPSO(fn=rastrigin, lower=lower, upper=upper, control=list(write2disk=FALSE) )
+}  # donttest END
 
+\dontrun{
+setwd("~")
 # Basic use 2. Rastrigin function (non-linear and multimodal with many local minima)
 # Results are saved to the hard disk. Slower than before but results are kept for
 # future inspection
@@ -476,8 +476,10 @@ plot_results(MinMax="min")
 
 # Plotting the results into PNG files. 
 plot_results(MinMax="min", do.png=TRUE)         
+} # dontrun END
 
 
+\donttest{
 ################################ 
 # Example 2. More advanced use #
 ################################ 
@@ -548,7 +550,7 @@ hydroPSO(fn=rastrigin,lower=lower,upper=upper,
          control=list(topology="vonNeumann", reltol=1E-20, 
                       REPORT=50, write2disk=FALSE, best.update="async") ) 
 
-} # dontrun END
+} # donttest END
 
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the

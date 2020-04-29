@@ -1,5 +1,11 @@
 NEWS for hydroPSO
 --------------------------
+0.5-1	28-Apr-2020
+        o Fixed error "object 'GoF' not found". This error appread in version 0.5-0 when "fn" is neither "hydromod" nor "hydromodInR".
+        o Updated [GR4J](https://CRAN.R-project.org/package=airGR) [vignette v0.3](https://doi.org/10.5281/zenodo.3774533), now including uncertainty in flow duration curves. 
+        o Updated TUWmodel](https://CRAN.R-project.org/package=TUWmodel) [vignette v0.9.3](https://doi.org/10.5281/zenodo.3772176), now including uncertainty in flow duration curves.
+
+ 
 0.5-0	17-March-2020
         o Package tested against R 4.0.0 (unstable) (2020-02-27 r77862) -- "Unsuffered Consequences", following an imperative request made by CRAN.
         o Added full compatibility with (hydrological/environmental) models implemented as R functions (e.g., TUWmodel, GR4, etc) 
